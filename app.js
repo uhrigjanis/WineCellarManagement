@@ -5,24 +5,24 @@ const T = {
     sortOpts: { rating: "Bewertung", vintage: "Jahrgang", price: "Preis", qty: "Menge", name: "Name" },
     sort: "Sortieren",
     navCellar: "Mein Keller", navDiscover: "Entdecken", navStats: "Statistiken",
-    addModalTitle: "Neuen Wein hinzufügen",
+    addModalTitle: "Neuen Wein hinzufügen", editModalTitle: "Wein bearbeiten",
     wineName: "Weinname", producer: "Produzent / Weingut", vintage: "Jahrgang", alcohol: "Alkohol (%)",
     wineType: "Weinart", region: "Anbaugebiet", country: "Land", cellar: "Keller",
     qty: "Menge", price: "Preis (€)", drinkFrom: "Bereit ab", drinkUntil: "Trinken bis",
     grapes: "Rebsorten", add: "Hinzufügen", mainGrape: "Hauptrebsorte", otherGrape: "Weitere Rebsorte",
-    cancel: "Abbrechen", addToCellar: "Zum Keller hinzufügen", mandatory: "Pflichtfeld",
+    cancel: "Abbrechen", addToCellar: "Zum Keller hinzufügen", saveChanges: "Änderungen speichern", mandatory: "Pflichtfeld",
     myCellar: "Mein Weinkeller", overview: "Übersicht", searchPh: "Wein oder Weingut …", addWine: "Wein hinzufügen",
     allWines: "Alle Weine", totalBottles: "Flaschen total", diffWines: "Verschiedene Weine", avgRating: "Ø Bewertung",
     wineTypesLabel: "Weinarten", topRegions: "Top Anbaugebiete", noData: "Keine Daten",
     wineCountSingle: "Wein", wineCountPlural: "Weine", emptyCellar: "Dein Keller ist noch leer.",
     addFirst: "Füge deinen ersten Wein hinzu →", noWines: "Keine Weine gefunden.",
-    back: "Zurück zur Übersicht", remove: "Aus Keller entfernen", inCellar: "Im Keller", bottles: "Flaschen",
+    back: "Zurück zur Übersicht", remove: "Aus Keller entfernen", edit: "Bearbeiten", inCellar: "Im Keller", bottles: "Flaschen",
     purchasePrice: "Kaufpreis", readyFrom: "Trinkbereit ab", reviews: "Bew.", noReviews: "Noch keine Bewertungen",
     nutrition: "Nährwertinfos", sugar: "Restzucker", energy: "Energie", sulfites: "Sulfite",
     dry: "Trocken", semiDry: "Halbtrocken", sweet: "Lieblich", tastingNotes: "Verkostungsnotizen",
     discoverTitle: "Weine entdecken", discoverDesc: "Suche neue Weine nach Region, Rebsorte oder Produzent und füge sie direkt zu deinem Keller hinzu.",
     statsTitle: "Detailstatistiken", statsDesc: "Jahrgangsentwicklung, Preisanalysen, Trinkreife-Kalender und mehr – demnächst verfügbar.",
-    toastAdded: "zum Keller hinzugefügt", toastRemoved: "aus dem Keller entfernt",
+    toastAdded: "zum Keller hinzugefügt", toastRemoved: "aus dem Keller entfernt", toastUpdated: "aktualisiert",
     confirmRemove: "wirklich aus dem Keller entfernen?"
   },
   en: {
@@ -30,24 +30,24 @@ const T = {
     sortOpts: { rating: "Rating", vintage: "Vintage", price: "Price", qty: "Quantity", name: "Name" },
     sort: "Sort",
     navCellar: "My Cellar", navDiscover: "Discover", navStats: "Statistics",
-    addModalTitle: "Add New Wine",
+    addModalTitle: "Add New Wine", editModalTitle: "Edit Wine",
     wineName: "Wine Name", producer: "Producer / Winery", vintage: "Vintage", alcohol: "Alcohol (%)",
     wineType: "Wine Type", region: "Region", country: "Country", cellar: "Cellar",
     qty: "Quantity", price: "Price (€)", drinkFrom: "Drink from", drinkUntil: "Drink until",
     grapes: "Grapes", add: "Add", mainGrape: "Main Grape", otherGrape: "Other Grape",
-    cancel: "Cancel", addToCellar: "Add to Cellar", mandatory: "Required",
+    cancel: "Cancel", addToCellar: "Add to Cellar", saveChanges: "Save Changes", mandatory: "Required",
     myCellar: "My Wine Cellar", overview: "Overview", searchPh: "Wine or Producer...", addWine: "Add Wine",
     allWines: "All Wines", totalBottles: "Total Bottles", diffWines: "Different Wines", avgRating: "Avg. Rating",
     wineTypesLabel: "Wine Types", topRegions: "Top Regions", noData: "No Data",
     wineCountSingle: "Wine", wineCountPlural: "Wines", emptyCellar: "Your cellar is currently empty.",
     addFirst: "Add your first wine →", noWines: "No wines found.",
-    back: "Back to overview", remove: "Remove from cellar", inCellar: "In Cellar", bottles: "Bottles",
+    back: "Back to overview", remove: "Remove from cellar", edit: "Edit", inCellar: "In Cellar", bottles: "Bottles",
     purchasePrice: "Purchase Price", readyFrom: "Ready from", reviews: "Rev.", noReviews: "No reviews yet",
     nutrition: "Nutrition Facts", sugar: "Residual Sugar", energy: "Energy", sulfites: "Sulfites",
     dry: "Dry", semiDry: "Semi-dry", sweet: "Sweet", tastingNotes: "Tasting Notes",
     discoverTitle: "Discover Wines", discoverDesc: "Search for new wines by region, grape, or producer and add them directly to your cellar.",
     statsTitle: "Detailed Statistics", statsDesc: "Vintage development, price analysis, drinking maturity calendar and more - coming soon.",
-    toastAdded: "added to cellar", toastRemoved: "removed from cellar",
+    toastAdded: "added to cellar", toastRemoved: "removed from cellar", toastUpdated: "updated",
     confirmRemove: "really remove from cellar?"
   }
 };
@@ -66,7 +66,8 @@ let state = {
   lang: "de",
   wines: [],
   selectedId: null,
-  tab: 0, // 0: Keller, 1: Entdecken, 2: Stats
+  editingId: null,
+  tab: 0, 
   showAdd: false,
   search: "",
   typeFilter: "",
@@ -95,7 +96,7 @@ function saveToStorage() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.wines));
 }
 
-// ─── Controller Aktionen (Global via window.app zugänglich) ───────────────────
+// ─── Controller Aktionen ──────────────────────────────────────────────────────
 window.app = {
   setTab(i) {
     state.tab = i;
@@ -108,7 +109,7 @@ window.app = {
   },
   handleSearch(val) {
     state.search = val;
-    renderDashboardListsAndCharts(); // Rendert nur Listen/Charts neu um Input-Fokus nicht zu verlieren
+    renderDashboardListsAndCharts();
   },
   setTypeFilter(key) {
     state.typeFilter = key;
@@ -145,8 +146,17 @@ window.app = {
   },
   toggleAddModal(show) {
     state.showAdd = show;
+    state.editingId = null;
     if (show) modalGrapes = [{ name: "", pct: "" }];
-    renderModal();
+    render();
+  },
+  openEditModal(id) {
+    const wine = state.wines.find(w => w.id === id);
+    if (!wine) return;
+    state.editingId = id;
+    state.showAdd = true;
+    modalGrapes = wine.grapes.length ? JSON.parse(JSON.stringify(wine.grapes)) : [{ name: "", pct: "" }];
+    render();
   },
   addModalGrape() {
     modalGrapes.push({ name: "", pct: "" });
@@ -162,9 +172,10 @@ window.app = {
     const producer = document.getElementById("m-producer").value.trim();
     const region = document.getElementById("m-region").value.trim();
     const country = document.getElementById("m-country").value.trim();
-    const type = document.querySelector('input[name="m-type"]:checked').value;
     
-    // Validierung
+    const typeEl = document.querySelector('input[name="m-type"]:checked');
+    const type = typeEl ? typeEl.value : "red";
+    
     let hasErrors = false;
     [["m-name", name], ["m-producer", producer], ["m-region", region], ["m-country", country]].forEach(([id, val]) => {
       const el = document.getElementById(id);
@@ -180,8 +191,21 @@ window.app = {
     });
     if (hasErrors) return;
 
-    const newWine = {
-      id: Date.now(),
+    // FIX: Sicheres Auslesen ohne Index-Konflikte im DOM
+    const grapeData = [];
+    modalGrapes.forEach((_, i) => {
+      const nameEl = document.getElementById(`g-name-${i}`);
+      const pctEl = document.getElementById(`g-pct-${i}`);
+      if (nameEl && nameEl.value.trim()) {
+        grapeData.push({
+          name: nameEl.value.trim(),
+          pct: pctEl ? (+pctEl.value || 100) : 100,
+          primary: grapeData.length === 0
+        });
+      }
+    });
+
+    const fields = {
       name, producer, region, country, type,
       vintage: +document.getElementById("m-vintage").value || null,
       alcohol: parseFloat(document.getElementById("m-alcohol").value) || 0,
@@ -189,23 +213,28 @@ window.app = {
       price: parseFloat(document.getElementById("m-price").value) || null,
       drinkFrom: +document.getElementById("m-drinkFrom").value || null,
       drinkUntil: +document.getElementById("m-drinkUntil").value || null,
-      rating: 0, reviews: 0,
-      nutrition: { sugar: 0, kcal: 0, sulfites: 0 },
-      tasting: [],
-      grapes: modalGrapes
-        .filter(g => g.name.trim() || document.getElementById(`g-name-${modalGrapes.indexOf(g)}`)?.value.trim())
-        .map((_, i) => {
-          const gName = document.getElementById(`g-name-${i}`).value.trim();
-          const gPct = +document.getElementById(`g-pct-${i}`).value || 100;
-          return { name: gName, pct: gPct, primary: i === 0 };
-        })
+      grapes: grapeData
     };
 
-    state.wines.unshift(newWine);
+    if (state.editingId !== null) {
+      state.wines = state.wines.map(w => w.id === state.editingId ? { ...w, ...fields } : w);
+      showToast(`„${name}" ${t.toastUpdated}`);
+    } else {
+      const newWine = {
+        id: Date.now(),
+        ...fields,
+        rating: 0, reviews: 0,
+        nutrition: { sugar: 0, kcal: 0, sulfites: 0 },
+        tasting: []
+      };
+      state.wines.unshift(newWine);
+      showToast(`„${name}" ${t.toastAdded}`);
+    }
+
     saveToStorage();
-    window.app.toggleAddModal(false);
+    state.showAdd = false;
+    state.editingId = null;
     render();
-    showToast(`„${newWine.name}" ${t.toastAdded}`);
   }
 };
 
@@ -213,7 +242,6 @@ window.app = {
 function render() {
   const t = T[state.lang];
   
-  // Navigation zeichnen
   document.getElementById("nav-zone").innerHTML = `
     <div class="flex items-center justify-between pb-4 mb-5 border-b border-gray-100 sticky top-0 bg-white z-10">
       <button onclick="window.app.setTab(0)" class="flex items-center gap-2">
@@ -234,18 +262,16 @@ function render() {
           <i data-lucide="globe" class="w-3.5 h-3.5"></i>
           ${state.lang === 'de' ? 'EN' : 'DE'}
         </button>
-        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-flex bg-[#FEE2E2] text-[#B83232]">JB</div>
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-[#FEE2E2] text-[#B83232]">JB</div>
       </div>
     </div>
   `;
 
-  // Views ausblenden
   document.querySelectorAll(".view-pane").forEach(el => el.classList.add("hidden"));
 
   if (state.selectedId !== null) {
     renderDetailView();
   } else if (state.tab === 0) {
-    // Texte statisch befüllen
     document.getElementById("lbl-my-cellar").innerText = t.myCellar;
     document.getElementById("lbl-overview").innerText = t.overview;
     document.getElementById("search-input").placeholder = t.searchPh;
@@ -261,6 +287,7 @@ function render() {
     renderPlaceholder("📊", t.statsTitle, t.statsDesc);
   }
 
+  renderModal();
   lucide.createIcons();
 }
 
@@ -274,9 +301,8 @@ function renderPlaceholder(icon, title, desc) {
 function renderDashboardListsAndCharts() {
   const t = T[state.lang];
   
-  // 1. Filter Buttons
   document.getElementById("filter-buttons").innerHTML = `
-    <button onclick="window.app.setTypeFilter('')" class="px-3.5 py-1 rounded-full text-sm border transition-all duration-150 font-medium ${state.typeFilter==='' ? 'color-white bg-[#111827] border-[#111827] text-white' : 'text-gray-500 border-gray-200'}">
+    <button onclick="window.app.setTypeFilter('')" class="px-3.5 py-1 rounded-full text-sm border transition-all duration-150 font-medium ${state.typeFilter==='' ? 'bg-[#111827] border-[#111827] text-white' : 'text-gray-500 border-gray-200'}">
       ${t.allWines}
     </button>
     ${Object.keys(TYPE).map(k => `
@@ -286,7 +312,6 @@ function renderDashboardListsAndCharts() {
     `).join('')}
   `;
 
-  // 2. Kennzahlen berechnen
   const totalBottles = state.wines.reduce((s, w) => s + w.qty, 0);
   const ratedWines = state.wines.filter(w => w.rating > 0);
   const avgRating = state.wines.length ? (ratedWines.reduce((s, w) => s + w.rating, 0) / (ratedWines.length || 1)).toFixed(1) : "–";
@@ -301,7 +326,6 @@ function renderDashboardListsAndCharts() {
     `).join('')}
   `;
 
-  // 3. Filterung & Sortierung der Weine
   const filtered = state.wines.filter(w => 
     (!state.typeFilter || w.type === state.typeFilter) &&
     (!state.search || w.name.toLowerCase().includes(state.search.toLowerCase()) || w.producer.toLowerCase().includes(state.search.toLowerCase()))
@@ -318,7 +342,6 @@ function renderDashboardListsAndCharts() {
     }
   });
 
-  // Sort-Leiste oben rechts
   const sortKeys = ["rating", "vintage", "price", "qty", "name"];
   document.getElementById("sort-bar-zone").innerHTML = `
     <div class="flex items-center gap-1.5 flex-wrap">
@@ -334,10 +357,8 @@ function renderDashboardListsAndCharts() {
     </div>
   `;
 
-  // Info Text über Count
   document.getElementById("wines-count-info").innerText = `${sorted.length} ${sorted.length !== 1 ? t.wineCountPlural : t.wineCountSingle} ${state.typeFilter ? ` · ${t.types[state.typeFilter]}` : ""}`;
 
-  // 4. Wein Grid bauen
   const grid = document.getElementById("wine-grid");
   const emptyState = document.getElementById("empty-state-zone");
   grid.innerHTML = "";
@@ -378,16 +399,11 @@ function renderDashboardListsAndCharts() {
     });
   }
 
-  // Charts initialisieren/updaten
   buildCharts();
-  lucide.createIcons();
 }
 
-// ─── Diagramm Generator (Chart.js Native) ────────────────────────────────────
 function buildCharts() {
   const t = T[state.lang];
-  
-  // Pie Chart Daten aufbereiten
   const pieLabels = []; const pieValues = []; const pieColors = [];
   Object.keys(TYPE).forEach(k => {
     const val = state.wines.filter(w => w.type === k).reduce((s, w) => s + w.qty, 0);
@@ -396,7 +412,6 @@ function buildCharts() {
     }
   });
 
-  // Pie Legende schreiben
   const legend = document.getElementById("pie-legend");
   if (pieValues.length === 0) {
     legend.innerHTML = `<div class="py-8 text-center text-xs text-gray-400">${t.noData}</div>`;
@@ -426,7 +441,6 @@ function buildCharts() {
     });
   }
 
-  // Bar Chart Daten (Anbaugebiete)
   const regionMap = state.wines.reduce((acc, w) => { acc[w.region] = (acc[w.region] || 0) + w.qty; return acc; }, {});
   const barData = Object.entries(regionMap).sort((a,b) => b[1]-a[1]).slice(0, 7);
 
@@ -436,7 +450,6 @@ function buildCharts() {
   if (barData.length === 0) {
     ctxBar.canvas.parentElement.innerHTML = `<div class="py-16 text-center text-xs text-gray-400">${t.noData}</div>`;
   } else {
-    // Falls das Innere vorher überschrieben wurde, Canvas wiederherstellen
     if (!document.getElementById("barChartCanvas")) {
       ctxBar.canvas.parentElement.innerHTML = '<canvas id="barChartCanvas"></canvas>';
     }
@@ -457,7 +470,6 @@ function buildCharts() {
   }
 }
 
-// ─── Detailansicht ────────────────────────────────────────────────────────────
 function renderDetailView() {
   const t = T[state.lang];
   const wine = state.wines.find(w => w.id === state.selectedId);
@@ -476,16 +488,21 @@ function renderDetailView() {
       <button onclick="window.app.setTab(0)" class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors">
         <i data-lucide="arrow-left" class="w-4 h-4"></i> ${t.back}
       </button>
-      <button onclick="window.app.deleteWine(${wine.id})" class="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 transition-colors">
-        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ${t.remove}
-      </button>
+      <div class="flex items-center gap-4">
+        <button onclick="window.app.openEditModal(${wine.id})" class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors">
+          <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> ${t.edit}
+        </button>
+        <button onclick="window.app.deleteWine(${wine.id})" class="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 transition-colors">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ${t.remove}
+        </button>
+      </div>
     </div>
 
     <div class="grid gap-5 grid-cols-[220px_1fr]">
       <div>
         <div style="background:${color}0D; border:1px solid ${color}28;" class="aspect-[2/3] rounded-16 flex flex-col overflow-hidden rounded-xl">
           <div class="flex-1 flex justify-center items-end">
-            <div style="background:${color}28; border:1px solid ${color}40;" class="width-22 w-6 rounded-t-md h-3/5"></div>
+            <div style="background:${color}28; border:1px solid ${color}40;" class="w-6 rounded-t-md h-3/5"></div>
           </div>
           <div class="m-3 bg-white/95 border-t-3 rounded-lg p-2.5 text-center shadow-sm" style="border-top: 3px solid ${color}">
             <div class="text-[11px] font-bold mb-0.5" style="color:${color}">${wine.vintage ?? "NV"}</div>
@@ -560,7 +577,6 @@ function renderDetailView() {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   `;
@@ -568,40 +584,42 @@ function renderDetailView() {
   lucide.createIcons();
 }
 
-// ─── Modal Renderer ───────────────────────────────────────────────────────────
 function renderModal() {
   const zone = document.getElementById("modal-zone");
   if (!state.showAdd) { zone.innerHTML = ""; return; }
   const t = T[state.lang];
+  
+  const isEdit = state.editingId !== null;
+  const wine = isEdit ? state.wines.find(w => w.id === state.editingId) : null;
 
   zone.innerHTML = `
     <div class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-16 w-full max-w-[530px] max-h-[90vh] flex flex-col shadow-2xl rounded-xl overflow-hidden">
+      <div class="bg-white w-full max-w-[530px] max-h-[90vh] flex flex-col shadow-2xl rounded-xl overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-          <h2 class="font-bold text-base text-gray-900">${t.addModalTitle}</h2>
+          <h2 class="font-bold text-base text-gray-900">${isEdit ? t.editModalTitle : t.addModalTitle}</h2>
           <button onclick="window.app.toggleAddModal(false)" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-4 h-4"></i></button>
         </div>
         
         <div class="overflow-y-auto flex-1 p-5">
           <div class="mb-3">
             <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.wineName} *</label>
-            <input id="m-name" placeholder="Château Pichon Baron" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400">
+            <input id="m-name" value="${wine ? wine.name : ''}" placeholder="Château Pichon Baron" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400">
             <span id="m-name-err" class="text-xs text-red-500 mt-1 hidden">${t.mandatory}</span>
           </div>
           <div class="mb-3">
             <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.producer} *</label>
-            <input id="m-producer" placeholder="Château Longueville" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400">
+            <input id="m-producer" value="${wine ? wine.producer : ''}" placeholder="Château Longueville" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400">
             <span id="m-producer-err" class="text-xs text-red-500 mt-1 hidden">${t.mandatory}</span>
           </div>
 
           <div class="grid grid-cols-2 gap-3 mb-3">
             <div>
               <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.vintage}</label>
-              <input id="m-vintage" type="number" placeholder="2020" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none">
+              <input id="m-vintage" type="number" value="${wine ? (wine.vintage ?? '') : ''}" placeholder="2020" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none">
             </div>
             <div>
               <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.alcohol}</label>
-              <input id="m-alcohol" type="number" step="0.1" placeholder="13.5" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none">
+              <input id="m-alcohol" type="number" step="0.1" value="${wine ? (wine.alcohol ?? '') : ''}" placeholder="13.5" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none">
             </div>
           </div>
 
@@ -610,7 +628,7 @@ function renderModal() {
             <div class="flex gap-4">
               ${Object.keys(TYPE).map((k, idx) => `
                 <label class="flex items-center gap-1.5 text-sm cursor-pointer font-medium text-gray-700">
-                  <input type="radio" name="m-type" value="${k}" ${idx===0 ? 'checked':''} class="accent-[#B83232]"> ${t.types[k]}
+                  <input type="radio" name="m-type" value="${k}" ${(wine ? wine.type === k : idx===0) ? 'checked':''} class="accent-[#B83232]"> ${t.types[k]}
                 </label>
               `).join('')}
             </div>
@@ -619,12 +637,12 @@ function renderModal() {
           <div class="grid grid-cols-2 gap-3 mb-4">
             <div>
               <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.region} *</label>
-              <input id="m-region" placeholder="Bordeaux" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none">
+              <input id="m-region" value="${wine ? wine.region : ''}" placeholder="Bordeaux" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none">
               <span id="m-region-err" class="text-xs text-red-500 mt-1 hidden">${t.mandatory}</span>
             </div>
             <div>
               <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.country} *</label>
-              <input id="m-country" placeholder="Frankreich" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none">
+              <input id="m-country" value="${wine ? wine.country : ''}" placeholder="Frankreich" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none">
               <span id="m-country-err" class="text-xs text-red-500 mt-1 hidden">${t.mandatory}</span>
             </div>
           </div>
@@ -632,10 +650,10 @@ function renderModal() {
           <div class="border-t border-gray-100 pt-3 mb-4">
             <p class="text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2">${t.cellar}</p>
             <div class="grid grid-cols-4 gap-2">
-              <div><label class="block text-[10px] text-gray-400 mb-0.5">${t.qty}</label><input id="m-qty" type="number" value="1" class="w-full border border-gray-200 rounded-lg p-1.5 text-center text-sm"></div>
-              <div><label class="block text-[10px] text-gray-400 mb-0.5">${t.price}</label><input id="m-price" type="number" step="0.5" placeholder="0.00" class="w-full border border-gray-200 rounded-lg p-1.5 text-center text-sm"></div>
-              <div><label class="block text-[10px] text-gray-400 mb-0.5">${t.drinkFrom}</label><input id="m-drinkFrom" type="number" placeholder="2025" class="w-full border border-gray-200 rounded-lg p-1.5 text-center text-sm"></div>
-              <div><label class="block text-[10px] text-gray-400 mb-0.5">${t.drinkUntil}</label><input id="m-drinkUntil" type="number" placeholder="2035" class="w-full border border-gray-200 rounded-lg p-1.5 text-center text-sm"></div>
+              <div><label class="block text-[10px] text-gray-400 mb-0.5">${t.qty}</label><input id="m-qty" type="number" value="${wine ? wine.qty : 1}" class="w-full border border-gray-200 rounded-lg p-1.5 text-center text-sm"></div>
+              <div><label class="block text-[10px] text-gray-400 mb-0.5">${t.price}</label><input id="m-price" type="number" step="0.5" value="${wine ? (wine.price ?? '') : ''}" placeholder="0.00" class="w-full border border-gray-200 rounded-lg p-1.5 text-center text-sm"></div>
+              <div><label class="block text-[10px] text-gray-400 mb-0.5">${t.drinkFrom}</label><input id="m-drinkFrom" type="number" value="${wine ? (wine.drinkFrom ?? '') : ''}" placeholder="2025" class="w-full border border-gray-200 rounded-lg p-1.5 text-center text-sm"></div>
+              <div><label class="block text-[10px] text-gray-400 mb-0.5">${t.drinkUntil}</label><input id="m-drinkUntil" type="number" value="${wine ? (wine.drinkUntil ?? '') : ''}" placeholder="2035" class="w-full border border-gray-200 rounded-lg p-1.5 text-center text-sm"></div>
             </div>
           </div>
 
@@ -650,7 +668,7 @@ function renderModal() {
 
         <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex gap-2 justify-end shrink-0">
           <button onclick="window.app.toggleAddModal(false)" class="px-4 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 bg-white">${t.cancel}</button>
-          <button onclick="window.app.submitWine()" class="px-4 py-2 rounded-lg text-xs font-bold text-white bg-[#B83232] hover:opacity-90">${t.addToCellar}</button>
+          <button onclick="window.app.submitWine()" class="px-4 py-2 rounded-lg text-xs font-bold text-white bg-[#B83232] hover:opacity-90">${isEdit ? t.saveChanges : t.addToCellar}</button>
         </div>
       </div>
     </div>
@@ -666,8 +684,8 @@ function renderModalGrapes() {
 
   box.innerHTML = modalGrapes.map((g, i) => `
     <div class="flex items-center gap-2">
-      <input id="g-name-${i}" value="${g.name}" placeholder="${i===0 ? t.mainGrape : t.otherGrape}" class="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none">
-      <input id="g-pct-${i}" type="number" value="${g.pct}" placeholder="%" class="w-14 border border-gray-200 rounded-lg px-1 py-1.5 text-xs text-center outline-none">
+      <input id="g-name-${i}" value="${g.name || ''}" placeholder="${i===0 ? t.mainGrape : t.otherGrape}" class="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none">
+      <input id="g-pct-${i}" type="number" value="${g.pct || ''}" placeholder="%" class="w-14 border border-gray-200 rounded-lg px-1 py-1.5 text-xs text-center outline-none">
       ${modalGrapes.length > 1 ? `<button onclick="window.app.removeModalGrape(${i})" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-4 h-4"></i></button>` : ''}
     </div>
   `).join('');
