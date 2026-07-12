@@ -101,6 +101,9 @@ window.app = {
   setTab(i) {
     state.tab = i;
     state.selectedId = null;
+    // FIX: Add-Wein-Overlay beim Tabwechsel (z.B. Klick auf "Entdecken") schließen
+    state.showAdd = false;
+    state.editingId = null;
     render();
   },
   toggleLang() {
@@ -444,14 +447,15 @@ function buildCharts() {
   const regionMap = state.wines.reduce((acc, w) => { acc[w.region] = (acc[w.region] || 0) + w.qty; return acc; }, {});
   const barData = Object.entries(regionMap).sort((a,b) => b[1]-a[1]).slice(0, 7);
 
-  const ctxBar = document.getElementById("barChartCanvas").getContext("2d");
-  if (barChartInstance) barChartInstance.destroy();
-  
+  // FIX: stabiler Container statt Referenz auf das (evtl. bereits entfernte) Canvas
+  const barContainer = document.getElementById("bar-chart-container");
+  if (barChartInstance) { barChartInstance.destroy(); barChartInstance = null; }
+
   if (barData.length === 0) {
-    ctxBar.canvas.parentElement.innerHTML = `<div class="py-16 text-center text-xs text-gray-400">${t.noData}</div>`;
+    barContainer.innerHTML = `<div class="py-16 text-center text-xs text-gray-400">${t.noData}</div>`;
   } else {
     if (!document.getElementById("barChartCanvas")) {
-      ctxBar.canvas.parentElement.innerHTML = '<canvas id="barChartCanvas"></canvas>';
+      barContainer.innerHTML = '<canvas id="barChartCanvas"></canvas>';
     }
     barChartInstance = new Chart(document.getElementById("barChartCanvas").getContext("2d"), {
       type: "bar",
