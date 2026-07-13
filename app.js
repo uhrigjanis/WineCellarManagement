@@ -20,6 +20,8 @@ const T = {
     purchasePrice: "Kaufpreis", readyFrom: "Trinkbereit ab", reviews: "Bew.", noReviews: "Noch keine Bewertungen",
     nutrition: "Nährwertinfos", sugar: "Restzucker", energy: "Energie", sulfites: "Sulfite",
     dry: "Trocken", semiDry: "Halbtrocken", sweet: "Lieblich", tastingNotes: "Verkostungsnotizen",
+    ownRating: "Eigene Bewertung", clickToRate: "Klicke zum Bewerten",
+    ratingRequiresCellar: "Bewertung erst möglich, wenn der Wein im Keller liegt (Menge > 0)",
     discoverTitle: "Weine entdecken", discoverDesc: "Suche neue Weine nach Region, Rebsorte oder Produzent und füge sie direkt zu deinem Keller hinzu.",
     statsTitle: "Detailstatistiken", statsDesc: "Jahrgangsentwicklung, Preisanalysen, Trinkreife-Kalender und mehr – demnächst verfügbar.",
     toastAdded: "zum Keller hinzugefügt", toastRemoved: "aus dem Keller entfernt", toastUpdated: "aktualisiert",
@@ -45,6 +47,8 @@ const T = {
     purchasePrice: "Purchase Price", readyFrom: "Ready from", reviews: "Rev.", noReviews: "No reviews yet",
     nutrition: "Nutrition Facts", sugar: "Residual Sugar", energy: "Energy", sulfites: "Sulfites",
     dry: "Dry", semiDry: "Semi-dry", sweet: "Sweet", tastingNotes: "Tasting Notes",
+    ownRating: "Own Rating", clickToRate: "Click to rate",
+    ratingRequiresCellar: "Rating available once the wine is back in your cellar (qty > 0)",
     discoverTitle: "Discover Wines", discoverDesc: "Search for new wines by region, grape, or producer and add them directly to your cellar.",
     statsTitle: "Detailed Statistics", statsDesc: "Vintage development, price analysis, drinking maturity calendar and more - coming soon.",
     toastAdded: "added to cellar", toastRemoved: "removed from cellar", toastUpdated: "updated",
@@ -169,6 +173,19 @@ window.app = {
     modalGrapes = modalGrapes.filter((_, idx) => idx !== i);
     renderModalGrapes();
   },
+  setRating(id, rawValue) {
+    const wine = state.wines.find(w => w.id === id);
+    // Bewertung nur möglich, solange der Wein tatsächlich im Keller liegt (qty > 0)
+    if (!wine || wine.qty <= 0) return;
+
+    let val = parseFloat(rawValue);
+    if (isNaN(val)) val = 0;
+    val = Math.max(0, Math.min(5, val));
+    val = Math.round(val * 10) / 10; // eine Nachkommastelle
+    state.wines = state.wines.map(w => w.id === id ? { ...w, rating: val } : w);
+    saveToStorage();
+    renderDetailView();
+  },
   submitWine() {
     const t = T[state.lang];
     const name = document.getElementById("m-name").value.trim();
@@ -226,7 +243,7 @@ window.app = {
       const newWine = {
         id: Date.now(),
         ...fields,
-        rating: 0, reviews: 0,
+        rating: 0,
         nutrition: { sugar: 0, kcal: 0, sulfites: 0 },
         tasting: []
       };
@@ -480,8 +497,15 @@ function renderDetailView() {
   if (!wine) return;
 
   const color = TYPE[wine.type].color;
+  const canRate = wine.qty > 0;
+  // Interaktive Sterne: volle/leere Sterne je nach gerundetem Wert, jeder Stern klickbar (Ganzzahl-Schnellwahl)
   const roundedStars = Math.round(wine.rating);
-  const starsHTML = `<span style="color:#F59E0B" class="text-lg">${"★".repeat(roundedStars)}</span><span style="color:#D1D5DB" class="text-lg">${"☆".repeat(5-roundedStars)}</span>`;
+  const clickableStarsHTML = Array.from({length: 5}, (_, i) => {
+    const filled = i < roundedStars;
+    return canRate
+      ? `<button type="button" onclick="window.app.setRating(${wine.id}, ${i+1})" class="text-2xl leading-none transition-transform hover:scale-110" style="color:${filled ? '#F59E0B' : '#D1D5DB'}">★</button>`
+      : `<span class="text-2xl leading-none opacity-40 cursor-not-allowed" style="color:${filled ? '#F59E0B' : '#D1D5DB'}">★</span>`;
+  }).join('');
   
   let sugarText = t.dry, sugarColor = "#16A34A";
   if (wine.nutrition.sugar >= 4 && wine.nutrition.sugar < 12) { sugarText = t.semiDry; sugarColor = "#D97706"; }
@@ -553,12 +577,20 @@ function renderDetailView() {
         </div>
 
         <div class="bg-gray-50 rounded-xl p-4 mb-5">
-          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Community Rating</p>
-          <div class="flex items-center gap-3">
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">${t.ownRating}</p>
+          <div class="flex items-center gap-4 flex-wrap">
             <div class="text-3xl font-bold text-gray-900">${wine.rating > 0 ? wine.rating.toFixed(1) : '–'}</div>
-            <div class="flex flex-col">
-              ${starsHTML}
-              <span class="text-xs text-gray-400 mt-0.5">${wine.reviews} ${t.reviews}</span>
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center gap-0.5">${clickableStarsHTML}</div>
+              <div class="flex items-center gap-2">
+                <input id="own-rating-input" type="number" min="0" max="5" step="0.1"
+                  value="${wine.rating || 0}"
+                  ${canRate ? `onchange="window.app.setRating(${wine.id}, this.value)"` : 'disabled'}
+                  class="w-16 border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-gray-400 ${canRate ? '' : 'opacity-40 cursor-not-allowed bg-gray-100'}">
+                <span class="text-xs text-gray-400">/ 5</span>
+              </div>
+              ${canRate ? '' : `<span class="text-[11px] text-gray-400">${t.ratingRequiresCellar}</span>`}
+              </div>
             </div>
           </div>
         </div>
