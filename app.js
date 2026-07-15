@@ -4,7 +4,7 @@ const T = {
     types: { red: "Rotwein", white: "Weißwein", sparkling: "Schaumwein", rose: "Rosé" },
     sortOpts: { rating: "Bewertung", vintage: "Jahrgang", price: "Preis", qty: "Menge", name: "Name" },
     sort: "Sortieren",
-    navCellar: "Mein Keller", navDiscover: "Entdecken", navArchive: "Archiv", navStats: "Statistiken",
+    navCellar: "Mein Keller", navArchive: "Archiv",
     addModalTitle: "Neuen Wein hinzufügen", editModalTitle: "Wein bearbeiten",
     wineName: "Weinname", producer: "Produzent / Weingut", vintage: "Jahrgang", alcohol: "Alkohol (%)",
     wineType: "Weinart", region: "Anbaugebiet", country: "Land", cellar: "Keller",
@@ -22,10 +22,8 @@ const T = {
     dry: "Trocken", semiDry: "Halbtrocken", sweet: "Lieblich", tastingNotes: "Verkostungsnotizen",
     ownRating: "Eigene Bewertung", clickToRate: "Klicke zum Bewerten",
     ratingRequiresCellar: "Bewertung erst möglich, wenn der Wein im Keller liegt (Menge > 0)",
-    discoverTitle: "Weine entdecken", discoverDesc: "Suche neue Weine nach Region, Rebsorte oder Produzent und füge sie direkt zu deinem Keller hinzu.",
     archiveSub: "Vergangene Weine", archiveTitle: "Archiv", archiveCountSingle: "archivierter Wein", archiveCountPlural: "archivierte Weine",
     emptyArchive: "Noch keine archivierten Weine. Sobald die Flaschen eines Weins aufgebraucht sind, landet er hier.",
-    statsTitle: "Detailstatistiken", statsDesc: "Jahrgangsentwicklung, Preisanalysen, Trinkreife-Kalender und mehr – demnächst verfügbar.",
     toastAdded: "zum Keller hinzugefügt", toastRemoved: "aus dem Keller entfernt", toastUpdated: "aktualisiert",
     confirmRemove: "wirklich aus dem Keller entfernen?"
   },
@@ -33,7 +31,7 @@ const T = {
     types: { red: "Red Wine", white: "White Wine", sparkling: "Sparkling", rose: "Rosé" },
     sortOpts: { rating: "Rating", vintage: "Vintage", price: "Price", qty: "Quantity", name: "Name" },
     sort: "Sort",
-    navCellar: "My Cellar", navDiscover: "Discover", navArchive: "Archive", navStats: "Statistics",
+    navCellar: "My Cellar", navArchive: "Archive",
     addModalTitle: "Add New Wine", editModalTitle: "Edit Wine",
     wineName: "Wine Name", producer: "Producer / Winery", vintage: "Vintage", alcohol: "Alcohol (%)",
     wineType: "Wine Type", region: "Region", country: "Country", cellar: "Cellar",
@@ -51,10 +49,8 @@ const T = {
     dry: "Dry", semiDry: "Semi-dry", sweet: "Sweet", tastingNotes: "Tasting Notes",
     ownRating: "Own Rating", clickToRate: "Click to rate",
     ratingRequiresCellar: "Rating available once the wine is back in your cellar (qty > 0)",
-    discoverTitle: "Discover Wines", discoverDesc: "Search for new wines by region, grape, or producer and add them directly to your cellar.",
     archiveSub: "Past Wines", archiveTitle: "Archive", archiveCountSingle: "archived wine", archiveCountPlural: "archived wines",
     emptyArchive: "No archived wines yet. Once all bottles of a wine are gone, it'll show up here.",
-    statsTitle: "Detailed Statistics", statsDesc: "Vintage development, price analysis, drinking maturity calendar and more - coming soon.",
     toastAdded: "added to cellar", toastRemoved: "removed from cellar", toastUpdated: "updated",
     confirmRemove: "really remove from cellar?"
   }
@@ -279,7 +275,7 @@ function render() {
         <span class="font-bold text-gray-900 tracking-tight">Weinkeller</span>
       </button>
       <nav class="flex items-center gap-1">
-        ${[t.navCellar, t.navDiscover, t.navArchive, t.navStats].map((label, i) => `
+        ${[t.navCellar, t.navArchive].map((label, i) => `
           <button onclick="window.app.setTab(${i})" class="px-3 py-1.5 rounded-lg text-sm transition-colors ${state.tab===i ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-700'}">
             ${label}
           </button>
@@ -309,26 +305,15 @@ function render() {
 
     document.getElementById("view-dashboard").classList.remove("hidden");
     renderDashboardListsAndCharts();
-  } else if (state.tab === 1) {
-    renderPlaceholder("🔍", t.discoverTitle, t.discoverDesc);
-  } else if (state.tab === 2) {
+  } else {
     document.getElementById("lbl-archive-sub").innerText = t.archiveSub;
     document.getElementById("lbl-archive-title").innerText = t.archiveTitle;
     document.getElementById("view-archive").classList.remove("hidden");
     renderArchiveView();
-  } else {
-    renderPlaceholder("📊", t.statsTitle, t.statsDesc);
   }
 
   renderModal();
   lucide.createIcons();
-}
-
-function renderPlaceholder(icon, title, desc) {
-  document.getElementById("placeholder-icon").innerText = icon;
-  document.getElementById("placeholder-title").innerText = title;
-  document.getElementById("placeholder-desc").innerText = desc;
-  document.getElementById("view-placeholder").classList.remove("hidden");
 }
 
 function renderDashboardListsAndCharts() {
