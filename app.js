@@ -4,7 +4,7 @@ const T = {
     types: { red: "Rotwein", white: "Weißwein", sparkling: "Schaumwein", rose: "Rosé" },
     sortOpts: { rating: "Bewertung", vintage: "Jahrgang", price: "Preis", qty: "Menge", name: "Name" },
     sort: "Sortieren",
-    navCellar: "Mein Keller", navDiscover: "Entdecken", navStats: "Statistiken",
+    navCellar: "Mein Keller", navArchive: "Archiv",
     addModalTitle: "Neuen Wein hinzufügen", editModalTitle: "Wein bearbeiten",
     wineName: "Weinname", producer: "Produzent / Weingut", vintage: "Jahrgang", alcohol: "Alkohol (%)",
     wineType: "Weinart", region: "Anbaugebiet", country: "Land", cellar: "Keller",
@@ -22,8 +22,8 @@ const T = {
     dry: "Trocken", semiDry: "Halbtrocken", sweet: "Lieblich", tastingNotes: "Verkostungsnotizen",
     ownRating: "Eigene Bewertung", clickToRate: "Klicke zum Bewerten",
     ratingRequiresCellar: "Bewertung erst möglich, wenn der Wein im Keller liegt (Menge > 0)",
-    discoverTitle: "Weine entdecken", discoverDesc: "Suche neue Weine nach Region, Rebsorte oder Produzent und füge sie direkt zu deinem Keller hinzu.",
-    statsTitle: "Detailstatistiken", statsDesc: "Jahrgangsentwicklung, Preisanalysen, Trinkreife-Kalender und mehr – demnächst verfügbar.",
+    archiveSub: "Vergangene Weine", archiveTitle: "Archiv", archiveCountSingle: "archivierter Wein", archiveCountPlural: "archivierte Weine",
+    emptyArchive: "Noch keine archivierten Weine. Sobald die Flaschen eines Weins aufgebraucht sind, landet er hier.",
     toastAdded: "zum Keller hinzugefügt", toastRemoved: "aus dem Keller entfernt", toastUpdated: "aktualisiert",
     confirmRemove: "wirklich aus dem Keller entfernen?"
   },
@@ -31,7 +31,7 @@ const T = {
     types: { red: "Red Wine", white: "White Wine", sparkling: "Sparkling", rose: "Rosé" },
     sortOpts: { rating: "Rating", vintage: "Vintage", price: "Price", qty: "Quantity", name: "Name" },
     sort: "Sort",
-    navCellar: "My Cellar", navDiscover: "Discover", navStats: "Statistics",
+    navCellar: "My Cellar", navArchive: "Archive",
     addModalTitle: "Add New Wine", editModalTitle: "Edit Wine",
     wineName: "Wine Name", producer: "Producer / Winery", vintage: "Vintage", alcohol: "Alcohol (%)",
     wineType: "Wine Type", region: "Region", country: "Country", cellar: "Cellar",
@@ -49,8 +49,8 @@ const T = {
     dry: "Dry", semiDry: "Semi-dry", sweet: "Sweet", tastingNotes: "Tasting Notes",
     ownRating: "Own Rating", clickToRate: "Click to rate",
     ratingRequiresCellar: "Rating available once the wine is back in your cellar (qty > 0)",
-    discoverTitle: "Discover Wines", discoverDesc: "Search for new wines by region, grape, or producer and add them directly to your cellar.",
-    statsTitle: "Detailed Statistics", statsDesc: "Vintage development, price analysis, drinking maturity calendar and more - coming soon.",
+    archiveSub: "Past Wines", archiveTitle: "Archive", archiveCountSingle: "archived wine", archiveCountPlural: "archived wines",
+    emptyArchive: "No archived wines yet. Once all bottles of a wine are gone, it'll show up here.",
     toastAdded: "added to cellar", toastRemoved: "removed from cellar", toastUpdated: "updated",
     confirmRemove: "really remove from cellar?"
   }
@@ -133,6 +133,10 @@ window.app = {
   },
   selectWine(id) {
     state.selectedId = id;
+    render();
+  },
+  closeDetail() {
+    state.selectedId = null;
     render();
   },
   updateQty(id, newQty) {
@@ -271,7 +275,7 @@ function render() {
         <span class="font-bold text-gray-900 tracking-tight">Weinkeller</span>
       </button>
       <nav class="flex items-center gap-1">
-        ${[t.navCellar, t.navDiscover, t.navStats].map((label, i) => `
+        ${[t.navCellar, t.navArchive].map((label, i) => `
           <button onclick="window.app.setTab(${i})" class="px-3 py-1.5 rounded-lg text-sm transition-colors ${state.tab===i ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-700'}">
             ${label}
           </button>
@@ -301,21 +305,15 @@ function render() {
 
     document.getElementById("view-dashboard").classList.remove("hidden");
     renderDashboardListsAndCharts();
-  } else if (state.tab === 1) {
-    renderPlaceholder("🔍", t.discoverTitle, t.discoverDesc);
   } else {
-    renderPlaceholder("📊", t.statsTitle, t.statsDesc);
+    document.getElementById("lbl-archive-sub").innerText = t.archiveSub;
+    document.getElementById("lbl-archive-title").innerText = t.archiveTitle;
+    document.getElementById("view-archive").classList.remove("hidden");
+    renderArchiveView();
   }
 
   renderModal();
   lucide.createIcons();
-}
-
-function renderPlaceholder(icon, title, desc) {
-  document.getElementById("placeholder-icon").innerText = icon;
-  document.getElementById("placeholder-title").innerText = title;
-  document.getElementById("placeholder-desc").innerText = desc;
-  document.getElementById("view-placeholder").classList.remove("hidden");
 }
 
 function renderDashboardListsAndCharts() {
@@ -332,13 +330,16 @@ function renderDashboardListsAndCharts() {
     `).join('')}
   `;
 
-  const totalBottles = state.wines.reduce((s, w) => s + w.qty, 0);
-  const ratedWines = state.wines.filter(w => w.rating > 0);
-  const avgRating = state.wines.length ? (ratedWines.reduce((s, w) => s + w.rating, 0) / (ratedWines.length || 1)).toFixed(1) : "–";
-  const grapeCount = new Set(state.wines.flatMap(w => w.grapes.map(g => g.name))).size;
+  // Nur Weine, die tatsächlich im Keller liegen (Menge > 0) – archivierte Weine (qty=0) siehe Archiv-Tab
+  const activeWines = state.wines.filter(w => w.qty > 0);
+
+  const totalBottles = activeWines.reduce((s, w) => s + w.qty, 0);
+  const ratedWines = activeWines.filter(w => w.rating > 0);
+  const avgRating = activeWines.length ? (ratedWines.reduce((s, w) => s + w.rating, 0) / (ratedWines.length || 1)).toFixed(1) : "–";
+  const grapeCount = new Set(activeWines.flatMap(w => w.grapes.map(g => g.name))).size;
 
   document.getElementById("stats-grid").innerHTML = `
-    ${[[totalBottles, t.totalBottles], [state.wines.length, t.diffWines], [avgRating, t.avgRating], [grapeCount, t.grapes]].map(([v, l]) => `
+    ${[[totalBottles, t.totalBottles], [activeWines.length, t.diffWines], [avgRating, t.avgRating], [grapeCount, t.grapes]].map(([v, l]) => `
       <div class="bg-gray-50 rounded-xl p-3.5">
         <div class="text-2xl font-bold text-gray-900">${v}</div>
         <div class="text-xs text-gray-500 mt-0.5">${l}</div>
@@ -346,7 +347,7 @@ function renderDashboardListsAndCharts() {
     `).join('')}
   `;
 
-  const filtered = state.wines.filter(w => 
+  const filtered = activeWines.filter(w => 
     (!state.typeFilter || w.type === state.typeFilter) &&
     (!state.search || w.name.toLowerCase().includes(state.search.toLowerCase()) || w.producer.toLowerCase().includes(state.search.toLowerCase()))
   );
@@ -385,7 +386,7 @@ function renderDashboardListsAndCharts() {
 
   if (sorted.length === 0) {
     emptyState.classList.remove("hidden");
-    emptyState.innerHTML = state.wines.length === 0 
+    emptyState.innerHTML = activeWines.length === 0 
       ? `<span>${t.emptyCellar} <button onclick="window.app.toggleAddModal(true)" class="text-[#B83232] font-semibold">${t.addFirst}</button></span>`
       : t.noWines;
   } else {
@@ -420,6 +421,53 @@ function renderDashboardListsAndCharts() {
   }
 
   buildCharts();
+}
+
+function renderArchiveView() {
+  const t = T[state.lang];
+  const archived = state.wines.filter(w => w.qty === 0);
+
+  document.getElementById("archive-count-info").innerText =
+    `${archived.length} ${archived.length !== 1 ? t.archiveCountPlural : t.archiveCountSingle}`;
+
+  const grid = document.getElementById("archive-grid");
+  const emptyZone = document.getElementById("archive-empty-zone");
+  grid.innerHTML = "";
+
+  if (archived.length === 0) {
+    emptyZone.classList.remove("hidden");
+    emptyZone.innerText = t.emptyArchive;
+    return;
+  }
+
+  emptyZone.classList.add("hidden");
+  archived.forEach(w => {
+    const card = document.createElement("div");
+    card.className = "bg-white border border-gray-100 rounded-xl p-3 hover:border-gray-300 hover:shadow-sm transition-all duration-150 flex gap-2.5 cursor-pointer opacity-80";
+    card.onclick = () => window.app.selectWine(w.id);
+
+    const roundedStars = Math.round(w.rating);
+    const starsHTML = `<span style="color:#F59E0B">${"★".repeat(roundedStars)}</span><span style="color:#D1D5DB">${"☆".repeat(5-roundedStars)}</span>`;
+
+    card.innerHTML = `
+      <div style="background:${TYPE[w.type].color}; width:3px;" class="rounded-sm self-stretch shrink-0 opacity-50"></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex justify-between items-baseline gap-1 mb-0.5">
+          <span class="text-sm font-semibold text-gray-900 truncate">${w.name}</span>
+          <span class="text-xs text-gray-400 shrink-0">${w.vintage ?? "NV"}</span>
+        </div>
+        <div class="text-xs text-gray-500 truncate mb-2">${w.producer} · ${w.region}</div>
+        <div class="flex items-center justify-between">
+          <span style="color:${TYPE[w.type].color}; background:${TYPE[w.type].color}1A; border:1px solid ${TYPE[w.type].color}35;" class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold">${t.types[w.type]}</span>
+          <span class="text-xs text-gray-400">0 ${t.bottles}</span>
+        </div>
+        <div class="flex items-center gap-1.5 mt-1.5">
+          ${starsHTML} <span class="text-xs text-gray-400">${w.rating > 0 ? w.rating.toFixed(1) : "–"}</span>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
 }
 
 function buildCharts() {
@@ -513,7 +561,7 @@ function renderDetailView() {
 
   document.getElementById("view-detail").innerHTML = `
     <div class="flex items-center justify-between mb-5">
-      <button onclick="window.app.setTab(0)" class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+      <button onclick="window.app.closeDetail()" class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors">
         <i data-lucide="arrow-left" class="w-4 h-4"></i> ${t.back}
       </button>
       <div class="flex items-center gap-4">
