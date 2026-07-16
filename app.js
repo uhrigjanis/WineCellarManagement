@@ -20,6 +20,9 @@ const T = {
     purchasePrice: "Kaufpreis", readyFrom: "Trinkbereit ab", reviews: "Bew.", noReviews: "Noch keine Bewertungen",
     nutrition: "Nährwertinfos", sugar: "Restzucker", energy: "Energie", sulfites: "Sulfite",
     dry: "Trocken", semiDry: "Halbtrocken", sweet: "Lieblich", tastingNotes: "Verkostungsnotizen",
+    tastingPh: "Persönliche Eindrücke, Aromen (z.B. dunkle Beeren, Leder, Holznote) oder Speisenempfehlungen festhalten...",
+    autosaveHint: "Wird beim Tippen automatisch gespeichert",
+    saved: "Gespeichert!",
     ownRating: "Eigene Bewertung", clickToRate: "Klicke zum Bewerten",
     ratingRequiresCellar: "Bewertung erst möglich, wenn der Wein im Keller liegt (Menge > 0)",
     archiveSub: "Vergangene Weine", archiveTitle: "Archiv", archiveCountSingle: "archivierter Wein", archiveCountPlural: "archivierte Weine",
@@ -49,6 +52,9 @@ const T = {
     purchasePrice: "Purchase Price", readyFrom: "Ready from", reviews: "Rev.", noReviews: "No reviews yet",
     nutrition: "Nutrition Facts", sugar: "Residual Sugar", energy: "Energy", sulfites: "Sulfites",
     dry: "Dry", semiDry: "Semi-dry", sweet: "Sweet", tastingNotes: "Tasting Notes",
+    tastingPh: "Write down your personal impressions, aromas (e.g. dark berries, leather, oak) or food pairings...",
+    autosaveHint: "Saves automatically as you type",
+    saved: "Saved!",
     ownRating: "Own Rating", clickToRate: "Click to rate",
     ratingRequiresCellar: "Rating available once the wine is back in your cellar (qty > 0)",
     archiveSub: "Past Wines", archiveTitle: "Archive", archiveCountSingle: "archived wine", archiveCountPlural: "archived wines",
@@ -86,6 +92,7 @@ let state = {
 let modalGrapes = [{ name: "", pct: "" }];
 let pieChartInstance = null;
 let barChartInstance = null;
+let tastingSaveTimeout = null;
 
 // ─── Initialisierung ──────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
@@ -223,6 +230,22 @@ window.app = {
     saveToStorage();
     renderDetailView();
   },
+  updateTastingNotes(id, text) {
+    const wine = state.wines.find(w => w.id === id);
+    if (!wine) return;
+    
+    wine.tastingNotes = text;
+    saveToStorage();
+
+    const indicator = document.getElementById("tasting-save-indicator");
+    if (indicator) {
+      indicator.classList.remove("hidden");
+      if (tastingSaveTimeout) clearTimeout(tastingSaveTimeout);
+      tastingSaveTimeout = setTimeout(() => {
+        indicator.classList.add("hidden");
+      }, 1200);
+    }
+  },
   submitWine() {
     const t = T[state.lang];
     const name = document.getElementById("m-name").value.trim();
@@ -281,7 +304,7 @@ window.app = {
         ...fields,
         rating: 0,
         nutrition: { sugar: 0, kcal: 0, sulfites: 0 },
-        tasting: []
+        tastingNotes: ""
       };
       state.wines.unshift(newWine);
       showToast(`„${name}" ${t.toastAdded}`);
@@ -680,7 +703,26 @@ function renderDetailView() {
                 <span class="text-xs text-gray-400">/ 5</span>
               </div>
               ${canRate ? '' : `<span class="text-[11px] text-gray-400">${t.ratingRequiresCellar}</span>`}
-              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Verkostungsnotizen (Tasting Notes) -->
+        <div class="mb-5">
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">${t.tastingNotes}</p>
+          <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 focus-within:border-gray-300 focus-within:bg-white transition-all">
+            <textarea id="m-tasting-notes" 
+              oninput="window.app.updateTastingNotes(${wine.id}, this.value)"
+              placeholder="${t.tastingPh}" 
+              class="w-full h-24 bg-transparent text-sm text-gray-700 outline-none resize-none border-none focus:ring-0 p-0 leading-relaxed"
+            >${wine.tastingNotes || ""}</textarea>
+            <div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
+              <span class="text-[10px] text-gray-400 flex items-center gap-1">
+                <i data-lucide="info" class="w-3.5 h-3.5 text-gray-300"></i> ${t.autosaveHint}
+              </span>
+              <span id="tasting-save-indicator" class="text-[10px] text-emerald-600 font-semibold hidden flex items-center gap-1">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-500"></i> ${t.saved}
+              </span>
             </div>
           </div>
         </div>
