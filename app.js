@@ -16,7 +16,7 @@ const T = {
     wineTypesLabel: "Weinarten", topRegions: "Top Anbaugebiete", noData: "Keine Daten",
     wineCountSingle: "Wein", wineCountPlural: "Weine", emptyCellar: "Dein Keller ist noch leer.",
     addFirst: "Füge deinen ersten Wein hinzu →", noWines: "Keine Weine gefunden.",
-    back: "Zurück zur Übersicht", remove: "Aus Keller entfernen", edit: "Bearbeiten", inCellar: "Im Keller", bottles: "Flaschen",
+    back: "Zurück zur Übersicht", edit: "Bearbeiten", inCellar: "Im Keller", bottles: "Flaschen",
     purchasePrice: "Kaufpreis", readyFrom: "Trinkbereit ab", reviews: "Bew.", noReviews: "Noch keine Bewertungen",
     nutrition: "Nährwertinfos", sugar: "Restzucker", energy: "Energie", sulfites: "Sulfite",
     dry: "Trocken", semiDry: "Halbtrocken", sweet: "Lieblich", tastingNotes: "Verkostungsnotizen",
@@ -24,8 +24,10 @@ const T = {
     ratingRequiresCellar: "Bewertung erst möglich, wenn der Wein im Keller liegt (Menge > 0)",
     archiveSub: "Vergangene Weine", archiveTitle: "Archiv", archiveCountSingle: "archivierter Wein", archiveCountPlural: "archivierte Weine",
     emptyArchive: "Noch keine archivierten Weine. Sobald die Flaschen eines Weins aufgebraucht sind, landet er hier.",
-    toastAdded: "zum Keller hinzugefügt", toastRemoved: "aus dem Keller entfernt", toastUpdated: "aktualisiert",
-    confirmRemove: "wirklich aus dem Keller entfernen?"
+    toastAdded: "zum Keller hinzugefügt", toastUpdated: "aktualisiert",
+    toastArchived: "wurde geleert und ins Archiv verschoben", toastDeleted: "wurde endgültig gelöscht", drinkOne: "Flasche geleert (-1)",
+    confirmDelete: "wirklich endgültig aus dem Archiv löschen? Dies kann nicht rückgängig gemacht werden.",
+    deletePermanently: "Endgültig löschen"
   },
   en: {
     types: { red: "Red Wine", white: "White Wine", sparkling: "Sparkling", rose: "Rosé" },
@@ -43,7 +45,7 @@ const T = {
     wineTypesLabel: "Wine Types", topRegions: "Top Regions", noData: "No Data",
     wineCountSingle: "Wine", wineCountPlural: "Wines", emptyCellar: "Your cellar is currently empty.",
     addFirst: "Add your first wine →", noWines: "No wines found.",
-    back: "Back to overview", remove: "Remove from cellar", edit: "Edit", inCellar: "In Cellar", bottles: "Bottles",
+    back: "Back to overview", edit: "Edit", inCellar: "In Cellar", bottles: "Bottles",
     purchasePrice: "Purchase Price", readyFrom: "Ready from", reviews: "Rev.", noReviews: "No reviews yet",
     nutrition: "Nutrition Facts", sugar: "Residual Sugar", energy: "Energy", sulfites: "Sulfites",
     dry: "Dry", semiDry: "Semi-dry", sweet: "Sweet", tastingNotes: "Tasting Notes",
@@ -51,8 +53,10 @@ const T = {
     ratingRequiresCellar: "Rating available once the wine is back in your cellar (qty > 0)",
     archiveSub: "Past Wines", archiveTitle: "Archive", archiveCountSingle: "archived wine", archiveCountPlural: "archived wines",
     emptyArchive: "No archived wines yet. Once all bottles of a wine are gone, it'll show up here.",
-    toastAdded: "added to cellar", toastRemoved: "removed from cellar", toastUpdated: "updated",
-    confirmRemove: "really remove from cellar?"
+    toastAdded: "added to cellar", toastUpdated: "updated",
+    toastArchived: "was emptied and moved to archive", toastDeleted: "was permanently deleted", drinkOne: "Bottle emptied (-1)",
+    confirmDelete: "really delete permanently from the archive? This cannot be undone.",
+    deletePermanently: "Delete Permanently"
   }
 };
 
@@ -105,7 +109,6 @@ window.app = {
   setTab(i) {
     state.tab = i;
     state.selectedId = null;
-    // FIX: Add-Wein-Overlay beim Tabwechsel (z.B. Klick auf "Entdecken") schließen
     state.showAdd = false;
     state.editingId = null;
     render();
@@ -140,19 +143,50 @@ window.app = {
     render();
   },
   updateQty(id, newQty) {
+    const t = T[state.lang];
+    const wine = state.wines.find(w => w.id === id);
+    if (!wine) return;
+    const oldQty = wine.qty;
+    
     state.wines = state.wines.map(w => w.id === id ? { ...w, qty: newQty } : w);
     saveToStorage();
     render();
+    
+    // Toast Rückmeldung basierend auf Änderung
+    if (oldQty > 0 && newQty === 0) {
+      showToast(`„${wine.name}" ${t.toastArchived}`, "warn");
+    } else if (newQty > oldQty) {
+      showToast(`„${wine.name}": +1 ${t.bottles}`);
+    } else if (newQty < oldQty) {
+      showToast(`„${wine.name}": ${t.drinkOne}`);
+    }
+  },
+  drinkBottle(id) {
+    const t = T[state.lang];
+    const wine = state.wines.find(w => w.id === id);
+    if (!wine || wine.qty <= 0) return;
+    
+    const newQty = wine.qty - 1;
+    state.wines = state.wines.map(w => w.id === id ? { ...w, qty: newQty } : w);
+    saveToStorage();
+    render();
+    
+    if (newQty === 0) {
+      showToast(`„${wine.name}" ${t.toastArchived}`, "warn");
+    } else {
+      showToast(`„${wine.name}": ${t.drinkOne}`);
+    }
   },
   deleteWine(id) {
     const t = T[state.lang];
     const wine = state.wines.find(w => w.id === id);
-    if (confirm(`„${wine.name}" ${t.confirmRemove}`)) {
+    if (!wine || wine.qty > 0) return; 
+    if (confirm(`„${wine.name}" ${t.confirmDelete}`)) {
       state.wines = state.wines.filter(w => w.id !== id);
       state.selectedId = null;
       saveToStorage();
       render();
-      showToast(`„${wine.name}" ${t.toastRemoved}`, "warn");
+      showToast(`„${wine.name}" ${t.toastDeleted}`, "warn");
     }
   },
   toggleAddModal(show) {
@@ -179,13 +213,12 @@ window.app = {
   },
   setRating(id, rawValue) {
     const wine = state.wines.find(w => w.id === id);
-    // Bewertung nur möglich, solange der Wein tatsächlich im Keller liegt (qty > 0)
     if (!wine || wine.qty <= 0) return;
 
     let val = parseFloat(rawValue);
     if (isNaN(val)) val = 0;
     val = Math.max(0, Math.min(5, val));
-    val = Math.round(val * 10) / 10; // eine Nachkommastelle
+    val = Math.round(val * 10) / 10; 
     state.wines = state.wines.map(w => w.id === id ? { ...w, rating: val } : w);
     saveToStorage();
     renderDetailView();
@@ -215,7 +248,6 @@ window.app = {
     });
     if (hasErrors) return;
 
-    // FIX: Sicheres Auslesen ohne Index-Konflikte im DOM
     const grapeData = [];
     modalGrapes.forEach((_, i) => {
       const nameEl = document.getElementById(`g-name-${i}`);
@@ -330,7 +362,7 @@ function renderDashboardListsAndCharts() {
     `).join('')}
   `;
 
-  // Nur Weine, die tatsächlich im Keller liegen (Menge > 0) – archivierte Weine (qty=0) siehe Archiv-Tab
+  // Nur Weine anzeigen, die im Keller vorrätig sind (> 0 Flaschen)
   const activeWines = state.wines.filter(w => w.qty > 0);
 
   const totalBottles = activeWines.reduce((s, w) => s + w.qty, 0);
@@ -409,7 +441,12 @@ function renderDashboardListsAndCharts() {
           <div class="text-xs text-gray-500 truncate mb-2">${w.producer} · ${w.region}</div>
           <div class="flex items-center justify-between">
             <span style="color:${TYPE[w.type].color}; background:${TYPE[w.type].color}1A; border:1px solid ${TYPE[w.type].color}35;" class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold">${t.types[w.type]}</span>
-            <span class="text-xs text-gray-400">${w.qty} ${t.bottles}</span>
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs text-gray-400">${w.qty} ${t.bottles}</span>
+              <button onclick="event.stopPropagation(); window.app.drinkBottle(${w.id})" title="${t.drinkOne}" class="w-5 h-5 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-red-50 hover:border-red-200 text-gray-500 hover:text-red-500 shrink-0 transition-colors">
+                <i data-lucide="minus" class="w-3 h-3"></i>
+              </button>
+            </div>
           </div>
           <div class="flex items-center gap-1.5 mt-1.5">
             ${starsHTML} <span class="text-xs text-gray-400">${w.rating > 0 ? w.rating.toFixed(1) : "–"}</span>
@@ -425,6 +462,7 @@ function renderDashboardListsAndCharts() {
 
 function renderArchiveView() {
   const t = T[state.lang];
+  // Filtert alle Weine mit exakt 0 Flaschen heraus
   const archived = state.wines.filter(w => w.qty === 0);
 
   document.getElementById("archive-count-info").innerText =
@@ -472,9 +510,12 @@ function renderArchiveView() {
 
 function buildCharts() {
   const t = T[state.lang];
+  // Nur aktive Weine für die Charts verwenden
+  const activeWines = state.wines.filter(w => w.qty > 0);
+
   const pieLabels = []; const pieValues = []; const pieColors = [];
   Object.keys(TYPE).forEach(k => {
-    const val = state.wines.filter(w => w.type === k).reduce((s, w) => s + w.qty, 0);
+    const val = activeWines.filter(w => w.type === k).reduce((s, w) => s + w.qty, 0);
     if (val > 0) {
       pieLabels.push(t.types[k]); pieValues.push(val); pieColors.push(TYPE[k].color);
     }
@@ -485,7 +526,7 @@ function buildCharts() {
     legend.innerHTML = `<div class="py-8 text-center text-xs text-gray-400">${t.noData}</div>`;
   } else {
     legend.innerHTML = Object.keys(TYPE).map(k => {
-      const val = state.wines.filter(w => w.type === k).reduce((s, w) => s + w.qty, 0);
+      const val = activeWines.filter(w => w.type === k).reduce((s, w) => s + w.qty, 0);
       if (val === 0) return "";
       return `
         <div class="flex items-center gap-2 text-xs">
@@ -509,11 +550,11 @@ function buildCharts() {
     });
   }
 
-  const regionMap = state.wines.reduce((acc, w) => { acc[w.region] = (acc[w.region] || 0) + w.qty; return acc; }, {});
-  const barData = Object.entries(regionMap).sort((a,b) => b[1]-a[1]).slice(0, 7);
+  const regionMap = activeWines.reduce((acc, w) => { acc[w.region] = (acc[w.region] || 0) + w.qty; return acc; }, {});
+  const barData = Object.entries(regionMap).filter(r => r[1] > 0).sort((a,b) => b[1]-a[1]).slice(0, 7);
 
-  // FIX: stabiler Container statt Referenz auf das (evtl. bereits entfernte) Canvas
   const barContainer = document.getElementById("bar-chart-container");
+  if (!barContainer) return;
   if (barChartInstance) { barChartInstance.destroy(); barChartInstance = null; }
 
   if (barData.length === 0) {
@@ -546,7 +587,7 @@ function renderDetailView() {
 
   const color = TYPE[wine.type].color;
   const canRate = wine.qty > 0;
-  // Interaktive Sterne: volle/leere Sterne je nach gerundetem Wert, jeder Stern klickbar (Ganzzahl-Schnellwahl)
+  
   const roundedStars = Math.round(wine.rating);
   const clickableStarsHTML = Array.from({length: 5}, (_, i) => {
     const filled = i < roundedStars;
@@ -568,9 +609,10 @@ function renderDetailView() {
         <button onclick="window.app.openEditModal(${wine.id})" class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors">
           <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> ${t.edit}
         </button>
+        ${wine.qty === 0 ? `
         <button onclick="window.app.deleteWine(${wine.id})" class="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 transition-colors">
-          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ${t.remove}
-        </button>
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ${t.deletePermanently}
+        </button>` : ''}
       </div>
     </div>
 
