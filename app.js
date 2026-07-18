@@ -92,6 +92,8 @@ let state = {
 let modalGrapes = [{ name: "", pct: "" }];
 let pieChartInstance = null;
 let barChartInstance = null;
+let archivePieChartInstance = null;
+let archiveBarChartInstance = null;
 let tastingSaveTimeout = null;
 
 // ─── Initialisierung ──────────────────────────────────────────────────────────
@@ -126,11 +128,13 @@ window.app = {
   },
   handleSearch(val) {
     state.search = val;
-    renderDashboardListsAndCharts();
+    if (state.tab === 0) renderDashboardListsAndCharts();
+    else renderArchiveView();
   },
   setTypeFilter(key) {
     state.typeFilter = key;
-    renderDashboardListsAndCharts();
+    if (state.tab === 0) renderDashboardListsAndCharts();
+    else renderArchiveView();
   },
   toggleSort(key) {
     const defaultDir = { rating:"desc", vintage:"desc", price:"desc", qty:"desc", name:"asc" };
@@ -139,7 +143,8 @@ window.app = {
     } else {
       state.sort = { key, dir: defaultDir[key] };
     }
-    renderDashboardListsAndCharts();
+    if (state.tab === 0) renderDashboardListsAndCharts();
+    else renderArchiveView();
   },
   selectWine(id) {
     state.selectedId = id;
@@ -361,8 +366,6 @@ function render() {
     document.getElementById("view-dashboard").classList.remove("hidden");
     renderDashboardListsAndCharts();
   } else {
-    document.getElementById("lbl-archive-sub").innerText = t.archiveSub;
-    document.getElementById("lbl-archive-title").innerText = t.archiveTitle;
     document.getElementById("view-archive").classList.remove("hidden");
     renderArchiveView();
   }
@@ -385,7 +388,6 @@ function renderDashboardListsAndCharts() {
     `).join('')}
   `;
 
-  // Nur Weine anzeigen, die im Keller vorrätig sind (> 0 Flaschen)
   const activeWines = state.wines.filter(w => w.qty > 0);
 
   const totalBottles = activeWines.reduce((s, w) => s + w.qty, 0);
@@ -485,55 +487,152 @@ function renderDashboardListsAndCharts() {
 
 function renderArchiveView() {
   const t = T[state.lang];
-  // Filtert alle Weine mit exakt 0 Flaschen heraus
-  const archived = state.wines.filter(w => w.qty === 0);
+  
+  // Dynamische Layout-Generierung für die Archiv-Ansicht zur Wahrung der UI-Parität
+  document.getElementById("view-archive").innerHTML = `
+    <div class="mb-5">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">${t.archiveSub}</p>
+      <h1 class="text-3xl font-bold text-gray-900 tracking-tight">${t.archiveTitle}</h1>
+    </div>
 
-  document.getElementById("archive-count-info").innerText =
-    `${archived.length} ${archived.length !== 1 ? t.archiveCountPlural : t.archiveCountSingle}`;
+    <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div class="flex-1 min-w-[240px] relative">
+        <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+        <input type="text" oninput="window.app.handleSearch(this.value)" value="${state.search}" placeholder="${t.searchPh}" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-9 pr-4 py-2 text-sm outline-none focus:border-gray-400 transition-colors">
+      </div>
+      <div id="archive-filter-buttons" class="flex flex-wrap gap-2"></div>
+    </div>
+
+    <div id="archive-stats-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6"></div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+      <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-900 mb-3">${t.wineTypesLabel}</h3>
+        <div class="flex items-center gap-6">
+          <div class="w-28 h-28 shrink-0 relative"><canvas id="archivePieChartCanvas"></canvas></div>
+          <div id="archive-pie-legend" class="flex-1 space-y-1.5"></div>
+        </div>
+      </div>
+      <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-900 mb-3">${t.topRegions}</h3>
+        <div id="archive-bar-chart-container" class="h-28 relative"><canvas id="archiveBarChartCanvas"></canvas></div>
+      </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100">
+      <div id="archive-wines-count-info" class="text-sm font-semibold text-gray-700"></div>
+      <div id="archive-sort-bar-zone"></div>
+    </div>
+
+    <div id="archive-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
+    <div id="archive-empty-zone" class="text-center py-12 text-sm text-gray-400 hidden"></div>
+  `;
+
+  document.getElementById("archive-filter-buttons").innerHTML = `
+    <button onclick="window.app.setTypeFilter('')" class="px-3.5 py-1 rounded-full text-sm border transition-all duration-150 font-medium ${state.typeFilter==='' ? 'bg-[#111827] border-[#111827] text-white' : 'text-gray-500 border-gray-200'}">
+      ${t.allWines}
+    </button>
+    ${Object.keys(TYPE).map(k => `
+      <button onclick="window.app.setTypeFilter('${k}')" class="px-3.5 py-1 rounded-full text-sm border transition-all duration-150 font-medium ${state.typeFilter===k ? 'text-white' : 'text-gray-500 border-gray-200'}" style="${state.typeFilter===k ? `background:${TYPE[k].color}; border-color:${TYPE[k].color};` : ''}">
+        ${t.types[k]}
+      </button>
+    `).join('')}
+  `;
+
+  const archivedWines = state.wines.filter(w => w.qty === 0);
+
+  // Paritätische Berechnungen für das Archiv (Zählung der individuellen Einträge)
+  const totalBottles = archivedWines.length; 
+  const ratedWines = archivedWines.filter(w => w.rating > 0);
+  const avgRating = archivedWines.length ? (ratedWines.reduce((s, w) => s + w.rating, 0) / (ratedWines.length || 1)).toFixed(1) : "–";
+  const grapeCount = new Set(archivedWines.flatMap(w => w.grapes.map(g => g.name))).size;
+
+  document.getElementById("archive-stats-grid").innerHTML = `
+    ${[[totalBottles, t.totalBottles], [archivedWines.length, t.diffWines], [avgRating, t.avgRating], [grapeCount, t.grapes]].map(([v, l]) => `
+      <div class="bg-gray-50 rounded-xl p-3.5">
+        <div class="text-2xl font-bold text-gray-900">${v}</div>
+        <div class="text-xs text-gray-500 mt-0.5">${l}</div>
+      </div>
+    `).join('')}
+  `;
+
+  const filtered = archivedWines.filter(w => 
+    (!state.typeFilter || w.type === state.typeFilter) &&
+    (!state.search || w.name.toLowerCase().includes(state.search.toLowerCase()) || w.producer.toLowerCase().includes(state.search.toLowerCase()))
+  );
+
+  const sorted = [...filtered].sort((a, b) => {
+    const m = state.sort.dir === "asc" ? 1 : -1;
+    switch (state.sort.key) {
+      case "rating": const d = m * (a.rating - b.rating); return d !== 0 ? d : b.id - a.id;
+      case "vintage": return m * ((a.vintage ?? 0) - (b.vintage ?? 0));
+      case "price": return m * ((a.price ?? 0) - (b.price ?? 0));
+      case "qty": return m * (a.qty - b.qty);
+      default: return m * a.name.localeCompare(b.name, state.lang);
+    }
+  });
+
+  const sortKeys = ["rating", "vintage", "price", "qty", "name"];
+  document.getElementById("archive-sort-bar-zone").innerHTML = `
+    <div class="flex items-center gap-1.5 flex-wrap">
+      <span class="text-xs text-gray-400">${t.sort}</span>
+      ${sortKeys.map(k => {
+        const active = state.sort.key === k;
+        return `
+          <button onclick="window.app.toggleSort('${k}')" class="text-xs px-2.5 py-1 rounded-lg border transition-all duration-150 ${active ? 'bg-[#111827] text-white border-[#111827]' : 'bg-transparent text-gray-500 border-gray-200'}">
+            ${t.sortOpts[k]}${active ? `<span class="ml-1 opacity-70">${state.sort.dir === "asc" ? "↑" : "↓"}</span>` : ""}
+          </button>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  document.getElementById("archive-wines-count-info").innerText = `${sorted.length} ${sorted.length !== 1 ? t.archiveCountPlural : t.archiveCountSingle} ${state.typeFilter ? ` · ${t.types[state.typeFilter]}` : ""}`;
 
   const grid = document.getElementById("archive-grid");
   const emptyZone = document.getElementById("archive-empty-zone");
   grid.innerHTML = "";
 
-  if (archived.length === 0) {
+  if (sorted.length === 0) {
     emptyZone.classList.remove("hidden");
-    emptyZone.innerText = t.emptyArchive;
-    return;
+    emptyZone.innerText = archivedWines.length === 0 ? t.emptyArchive : t.noWines;
+  } else {
+    emptyZone.classList.add("hidden");
+    sorted.forEach(w => {
+      const card = document.createElement("div");
+      card.className = "bg-white border border-gray-100 rounded-xl p-3 hover:border-gray-300 hover:shadow-sm transition-all duration-150 flex gap-2.5 cursor-pointer opacity-80";
+      card.onclick = () => window.app.selectWine(w.id);
+
+      const roundedStars = Math.round(w.rating);
+      const starsHTML = `<span style="color:#F59E0B">${"★".repeat(roundedStars)}</span><span style="color:#D1D5DB">${"☆".repeat(5-roundedStars)}</span>`;
+
+      card.innerHTML = `
+        <div style="background:${TYPE[w.type].color}; width:3px;" class="rounded-sm self-stretch shrink-0 opacity-50"></div>
+        <div class="flex-1 min-w-0">
+          <div class="flex justify-between items-baseline gap-1 mb-0.5">
+            <span class="text-sm font-semibold text-gray-900 truncate">${w.name}</span>
+            <span class="text-xs text-gray-400 shrink-0">${w.vintage ?? "NV"}</span>
+          </div>
+          <div class="text-xs text-gray-500 truncate mb-2">${w.producer} · ${w.region}</div>
+          <div class="flex items-center justify-between">
+            <span style="color:${TYPE[w.type].color}; background:${TYPE[w.type].color}1A; border:1px solid ${TYPE[w.type].color}35;" class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold">${t.types[w.type]}</span>
+            <span class="text-xs text-gray-400">0 ${t.bottles}</span>
+          </div>
+          <div class="flex items-center gap-1.5 mt-1.5">
+            ${starsHTML} <span class="text-xs text-gray-400">${w.rating > 0 ? w.rating.toFixed(1) : "–"}</span>
+          </div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
   }
 
-  emptyZone.classList.add("hidden");
-  archived.forEach(w => {
-    const card = document.createElement("div");
-    card.className = "bg-white border border-gray-100 rounded-xl p-3 hover:border-gray-300 hover:shadow-sm transition-all duration-150 flex gap-2.5 cursor-pointer opacity-80";
-    card.onclick = () => window.app.selectWine(w.id);
-
-    const roundedStars = Math.round(w.rating);
-    const starsHTML = `<span style="color:#F59E0B">${"★".repeat(roundedStars)}</span><span style="color:#D1D5DB">${"☆".repeat(5-roundedStars)}</span>`;
-
-    card.innerHTML = `
-      <div style="background:${TYPE[w.type].color}; width:3px;" class="rounded-sm self-stretch shrink-0 opacity-50"></div>
-      <div class="flex-1 min-w-0">
-        <div class="flex justify-between items-baseline gap-1 mb-0.5">
-          <span class="text-sm font-semibold text-gray-900 truncate">${w.name}</span>
-          <span class="text-xs text-gray-400 shrink-0">${w.vintage ?? "NV"}</span>
-        </div>
-        <div class="text-xs text-gray-500 truncate mb-2">${w.producer} · ${w.region}</div>
-        <div class="flex items-center justify-between">
-          <span style="color:${TYPE[w.type].color}; background:${TYPE[w.type].color}1A; border:1px solid ${TYPE[w.type].color}35;" class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold">${t.types[w.type]}</span>
-          <span class="text-xs text-gray-400">0 ${t.bottles}</span>
-        </div>
-        <div class="flex items-center gap-1.5 mt-1.5">
-          ${starsHTML} <span class="text-xs text-gray-400">${w.rating > 0 ? w.rating.toFixed(1) : "–"}</span>
-        </div>
-      </div>
-    `;
-    grid.appendChild(card);
-  });
+  buildArchiveCharts(archivedWines);
+  lucide.createIcons();
 }
 
 function buildCharts() {
   const t = T[state.lang];
-  // Nur aktive Weine für die Charts verwenden
   const activeWines = state.wines.filter(w => w.qty > 0);
 
   const pieLabels = []; const pieValues = []; const pieColors = [];
@@ -587,6 +686,76 @@ function buildCharts() {
       barContainer.innerHTML = '<canvas id="barChartCanvas"></canvas>';
     }
     barChartInstance = new Chart(document.getElementById("barChartCanvas").getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: barData.map(r => r[0]),
+        datasets: [{ data: barData.map(r => r[1]), backgroundColor: "#7C6DC7", borderRadius: 4 }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false } }, y: { grid: { display: false } } }
+      }
+    });
+  }
+}
+
+function buildArchiveCharts(archivedWines) {
+  const t = T[state.lang];
+  const pieLabels = []; const pieValues = []; const pieColors = [];
+  
+  Object.keys(TYPE).forEach(k => {
+    const val = archivedWines.filter(w => w.type === k).length;
+    if (val > 0) {
+      pieLabels.push(t.types[k]); pieValues.push(val); pieColors.push(TYPE[k].color);
+    }
+  });
+
+  const legend = document.getElementById("archive-pie-legend");
+  if (pieValues.length === 0) {
+    legend.innerHTML = `<div class="py-8 text-center text-xs text-gray-400">${t.noData}</div>`;
+  } else {
+    legend.innerHTML = Object.keys(TYPE).map(k => {
+      const val = archivedWines.filter(w => w.type === k).length;
+      if (val === 0) return "";
+      return `
+        <div class="flex items-center gap-2 text-xs">
+          <span style="background:${TYPE[k].color}" class="w-2 h-2 rounded-sm shrink-0"></span>
+          <span class="text-gray-500 flex-1">${t.types[k]}</span>
+          <span class="font-semibold text-gray-700">${val} ${val !== 1 ? t.wineCountPlural : t.wineCountSingle}</span>
+        </div>`;
+    }).join('');
+  }
+
+  const ctxPie = document.getElementById("archivePieChartCanvas").getContext("2d");
+  if (archivePieChartInstance) archivePieChartInstance.destroy();
+  if (pieValues.length > 0) {
+    archivePieChartInstance = new Chart(ctxPie, {
+      type: "doughnut",
+      data: {
+        labels: pieLabels,
+        datasets: [{ data: pieValues, backgroundColor: pieColors, borderWidth: 0 }]
+      },
+      options: { cutout: "65%", plugins: { legend: { display: false } } }
+    });
+  }
+
+  const regionMap = archivedWines.reduce((acc, w) => { acc[w.region] = (acc[w.region] || 0) + 1; return acc; }, {});
+  const barData = Object.entries(regionMap).filter(r => r[1] > 0).sort((a,b) => b[1]-a[1]).slice(0, 7);
+
+  const barContainer = document.getElementById("archive-bar-chart-container");
+  if (!barContainer) return;
+  if (archiveBarChartInstance) { archiveBarChartInstance.destroy(); archiveBarChartInstance = null; }
+
+  if (barData.length === 0) {
+    barContainer.innerHTML = `<div class="py-16 text-center text-xs text-gray-400">${t.noData}</div>`;
+  } else {
+    if (!document.getElementById("archiveBarChartCanvas")) {
+      barContainer.innerHTML = '<canvas id="archiveBarChartCanvas"></canvas>';
+    }
+    archiveBarChartInstance = new Chart(document.getElementById("archiveBarChartCanvas").getContext("2d"), {
       type: "bar",
       data: {
         labels: barData.map(r => r[0]),
