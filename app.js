@@ -1,4 +1,4 @@
-// ─── Translations Dictionary Updates ──────────────────────────────────────────
+// ─── Translations Dictionary ─────────────────────────────────────────────────
 const T = {
   de: {
     types: { red: "Rotwein", white: "Weißwein", sparkling: "Schaumwein", rose: "Rosé" },
@@ -37,10 +37,9 @@ const T = {
     uploadImage: "Foto hochladen",
     changeImage: "Foto ändern",
     removeImage: "Foto entfernen",
-    scanOCR: "Etikett scannen (OCR)",
-    ocrProcessing: "Etikett wird analysiert...",
-    ocrSuccess: "Daten aus Etikett übernommen!",
-    ocrFeatureNotice: "OCR-Erkennung aktiviert: Daten wurden aus dem Etikett ausgelesen."
+    scanOCR: "Etikett scannen (Optimierte Bildbearbeitung)",
+    ocrProcessing: "Bild wird vorverarbeitet und gescannt...",
+    ocrSuccess: "Etikett-Daten erkannt!"
   },
   en: {
     types: { red: "Red Wine", white: "White Wine", sparkling: "Sparkling", rose: "Rosé" },
@@ -79,18 +78,17 @@ const T = {
     uploadImage: "Upload photo",
     changeImage: "Change photo",
     removeImage: "Remove photo",
-    scanOCR: "Scan Label (OCR)",
-    ocrProcessing: "Analyzing label...",
-    ocrSuccess: "Data extracted from label!",
-    ocrFeatureNotice: "OCR scan simulated: extracted details filled in."
+    scanOCR: "Scan Label (Optimized Processing)",
+    ocrProcessing: "Preprocessing & scanning image...",
+    ocrSuccess: "Label data extracted!"
   }
 };
 
 const TYPE = {
-  red:      { color: "#B83232" },
-  white:    { color: "#B8860B" },
-  sparkling:{ color: "#1A8F68" },
-  rose:     { color: "#B85070" },
+  red:       { color: "#B83232" },
+  white:     { color: "#B8860B" },
+  sparkling: { color: "#1A8F68" },
+  rose:      { color: "#B85070" },
 };
 
 const STORAGE_KEY = "weinkeller-wines-v2";
@@ -108,12 +106,61 @@ let state = {
 };
 
 let modalGrapes = [{ name: "", pct: "" }];
-let modalImageUrl = ""; // Temporary storage for modal image preview/upload
+let modalImageUrl = ""; 
 let pieChartInstance = null;
 let barChartInstance = null;
 let archivePieChartInstance = null;
 let archiveBarChartInstance = null;
 let tastingSaveTimeout = null;
+
+// ─── Non-AI HTML5 Canvas Image Preprocessor ──────────────────────────────────
+function preprocessImageForOCR(imageSrc) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const width = img.naturalWidth || img.width;
+      const height = img.naturalHeight || img.height;
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+
+      // 1. Grayscale & Contrast Boosting
+      const contrast = 1.6;
+      const intercept = 128 * (1 - contrast);
+      let sumGray = 0;
+
+      for (let i = 0; i < data.length; i += 4) {
+        let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        gray = Math.min(255, Math.max(0, gray * contrast + intercept));
+        data[i] = gray;
+        data[i + 1] = gray;
+        data[i + 2] = gray;
+        sumGray += gray;
+      }
+
+      // 2. Dynamic Thresholding (Binarization: Force text to pure black, background to white)
+      const threshold = sumGray / (data.length / 4);
+      for (let i = 0; i < data.length; i += 4) {
+        const val = data[i] < threshold ? 0 : 255;
+        data[i] = val;
+        data[i + 1] = val;
+        data[i + 2] = val;
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = (err) => reject(err);
+    img.src = imageSrc;
+  });
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -240,7 +287,6 @@ window.app = {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Convert file to Base64 URL for persistent storage in localStorage
     const reader = new FileReader();
     reader.onload = (evt) => {
       modalImageUrl = evt.target.result;
@@ -251,31 +297,6 @@ window.app = {
   removeModalImage() {
     modalImageUrl = "";
     renderModalImagePreview();
-  },
-
-  // ─── Future Enhancement Hook: Label Recognition OCR ──────────────────────
-  scanLabelOCR() {
-    const t = T[state.lang];
-    if (!modalImageUrl) {
-      showToast("Bitte zuerst ein Bild auswählen", "warn");
-      return;
-    }
-    
-    showToast(t.ocrProcessing);
-
-    // Mock/placeholder OCR process extracting metadata from bottle label
-    setTimeout(() => {
-      // Auto-populate fields if empty
-      const nameInput = document.getElementById("m-name");
-      const producerInput = document.getElementById("m-producer");
-      const vintageInput = document.getElementById("m-vintage");
-
-      if (nameInput && !nameInput.value) nameInput.value = "Château Margaux";
-      if (producerInput && !producerInput.value) producerInput.value = "Grand Vin de Château Margaux";
-      if (vintageInput && !vintageInput.value) vintageInput.value = "2018";
-
-      showToast(t.ocrSuccess);
-    }, 1200);
   },
 
   addModalGrape() {
@@ -354,7 +375,7 @@ window.app = {
 
     const fields = {
       name, producer, region, country, type,
-      image: modalImageUrl, // Image property added to model
+      image: modalImageUrl,
       vintage: +document.getElementById("m-vintage").value || null,
       alcohol: parseFloat(document.getElementById("m-alcohol").value) || 0,
       qty: +document.getElementById("m-qty").value || 1,
@@ -421,8 +442,6 @@ function render() {
   if (state.selectedId !== null) {
     renderDetailView();
   } else if (state.tab === 0) {
-    document.getElementById("lbl-my-cellar").innerText = t.myCellar;
-    document.getElementById("lbl-overview").innerText = t.overview;
     document.getElementById("search-input").placeholder = t.searchPh;
     document.getElementById("lbl-add-wine-btn").innerText = t.addWine;
     document.getElementById("lbl-chart-types").innerText = t.wineTypesLabel;
@@ -521,7 +540,6 @@ function renderDashboardListsAndCharts() {
       const roundedStars = Math.round(w.rating);
       const starsHTML = `<span style="color:#F59E0B">${"★".repeat(roundedStars)}</span><span style="color:#D1D5DB">${"☆".repeat(5-roundedStars)}</span>`;
 
-      // Visual Thumbnail Element
       const imageThumbHTML = w.image 
         ? `<div class="w-12 h-16 rounded overflow-hidden shrink-0 bg-gray-50 border border-gray-100"><img src="${w.image}" class="w-full h-full object-cover"></div>`
         : `<div style="background:${TYPE[w.type].color}; width:3px;" class="rounded-sm self-stretch shrink-0"></div>`;
@@ -844,7 +862,7 @@ function buildArchiveCharts(archivedWines) {
   }
 }
 
-// ─── Detail View Rendering with Image Display ─────────────────────────────────
+// ─── Detail View Rendering ───────────────────────────────────────────────────
 function renderDetailView() {
   const t = T[state.lang];
   const wine = state.wines.find(w => w.id === state.selectedId);
@@ -865,7 +883,6 @@ function renderDetailView() {
   if (wine.nutrition.sugar >= 4 && wine.nutrition.sugar < 12) { sugarText = t.semiDry; sugarColor = "#D97706"; }
   else if (wine.nutrition.sugar >= 12) { sugarText = t.sweet; sugarColor = "#9333EA"; }
 
-  // Render Real Image or Render Default Graphic Placeholder
   const imageDisplayHTML = wine.image 
     ? `<div class="aspect-[2/3] rounded-xl overflow-hidden shadow-sm border border-gray-100 bg-gray-50 flex items-center justify-center">
         <img src="${wine.image}" alt="${wine.name}" class="w-full h-full object-cover">
@@ -1000,7 +1017,7 @@ function renderDetailView() {
   lucide.createIcons();
 }
 
-// ─── Modal Rendering with Upload & OCR Controls ───────────────────────────────
+// ─── Modal Rendering ──────────────────────────────────────────────────────────
 function renderModal() {
   const zone = document.getElementById("modal-zone");
   if (!state.showAdd) { zone.innerHTML = ""; return; }
@@ -1018,7 +1035,6 @@ function renderModal() {
         </div>
         
         <div class="overflow-y-auto flex-1 p-5">
-          <!-- Image Upload & OCR Field Area -->
           <div class="mb-4 bg-gray-50 rounded-xl p-3 border border-gray-100">
             <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-2">${t.wineImage}</label>
             <div id="modal-image-preview-zone"></div>
@@ -1026,12 +1042,12 @@ function renderModal() {
 
           <div class="mb-3">
             <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.wineName} *</label>
-            <input id="m-name" value="${wine ? wine.name : ''}" placeholder="Château Pichon Baron" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400">
+            <input id="m-name" value="${wine ? wine.name : ''}" placeholder="Pichon Longueville Comtesse de Lalande" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400">
             <span id="m-name-err" class="text-xs text-red-500 mt-1 hidden">${t.mandatory}</span>
           </div>
           <div class="mb-3">
             <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.producer} *</label>
-            <input id="m-producer" value="${wine ? wine.producer : ''}" placeholder="Château Longueville" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400">
+            <input id="m-producer" value="${wine ? wine.producer : ''}" placeholder="Château Pichon Longueville" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400">
             <span id="m-producer-err" class="text-xs text-red-500 mt-1 hidden">${t.mandatory}</span>
           </div>
 
@@ -1060,7 +1076,7 @@ function renderModal() {
           <div class="grid grid-cols-2 gap-3 mb-4">
             <div>
               <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.region} *</label>
-              <input id="m-region" value="${wine ? wine.region : ''}" placeholder="Bordeaux" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none">
+              <input id="m-region" value="${wine ? wine.region : ''}" placeholder="Pauillac" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none">
               <span id="m-region-err" class="text-xs text-red-500 mt-1 hidden">${t.mandatory}</span>
             </div>
             <div>
@@ -1122,9 +1138,6 @@ function renderModalImagePreview() {
               ${t.removeImage}
             </button>
           </div>
-          <button type="button" onclick="window.app.scanLabelOCR()" class="flex items-center gap-1.5 text-xs text-[#B83232] font-semibold hover:underline">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> ${t.scanOCR}
-          </button>
         </div>
       </div>
     `;
