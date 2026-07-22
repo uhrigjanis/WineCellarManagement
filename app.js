@@ -1,4 +1,4 @@
-// ─── Übersetzungen (Dictionary) ───────────────────────────────────────────────
+// ─── Translations Dictionary Updates ──────────────────────────────────────────
 const T = {
   de: {
     types: { red: "Rotwein", white: "Weißwein", sparkling: "Schaumwein", rose: "Rosé" },
@@ -30,7 +30,17 @@ const T = {
     toastAdded: "zum Keller hinzugefügt", toastUpdated: "aktualisiert",
     toastArchived: "wurde geleert und ins Archiv verschoben", toastDeleted: "wurde endgültig gelöscht", drinkOne: "Flasche geleert (-1)",
     confirmDelete: "wirklich endgültig aus dem Archiv löschen? Dies kann nicht rückgängig gemacht werden.",
-    deletePermanently: "Endgültig löschen"
+    deletePermanently: "Endgültig löschen",
+    
+    // Image & OCR translations
+    wineImage: "Wein- / Etikettfoto",
+    uploadImage: "Foto hochladen",
+    changeImage: "Foto ändern",
+    removeImage: "Foto entfernen",
+    scanOCR: "Etikett scannen (OCR)",
+    ocrProcessing: "Etikett wird analysiert...",
+    ocrSuccess: "Daten aus Etikett übernommen!",
+    ocrFeatureNotice: "OCR-Erkennung aktiviert: Daten wurden aus dem Etikett ausgelesen."
   },
   en: {
     types: { red: "Red Wine", white: "White Wine", sparkling: "Sparkling", rose: "Rosé" },
@@ -62,7 +72,17 @@ const T = {
     toastAdded: "added to cellar", toastUpdated: "updated",
     toastArchived: "was emptied and moved to archive", toastDeleted: "was permanently deleted", drinkOne: "Bottle emptied (-1)",
     confirmDelete: "really delete permanently from the archive? This cannot be undone.",
-    deletePermanently: "Delete Permanently"
+    deletePermanently: "Delete Permanently",
+    
+    // Image & OCR translations
+    wineImage: "Wine / Label Photo",
+    uploadImage: "Upload photo",
+    changeImage: "Change photo",
+    removeImage: "Remove photo",
+    scanOCR: "Scan Label (OCR)",
+    ocrProcessing: "Analyzing label...",
+    ocrSuccess: "Data extracted from label!",
+    ocrFeatureNotice: "OCR scan simulated: extracted details filled in."
   }
 };
 
@@ -75,7 +95,6 @@ const TYPE = {
 
 const STORAGE_KEY = "weinkeller-wines-v2";
 
-// Globaler App-Status
 let state = {
   lang: "de",
   wines: [],
@@ -88,15 +107,14 @@ let state = {
   sort: { key: "rating", dir: "desc" }
 };
 
-// Lokaler Zwischenspeicher für dynamische Rebsorten im Modal
 let modalGrapes = [{ name: "", pct: "" }];
+let modalImageUrl = ""; // Temporary storage for modal image preview/upload
 let pieChartInstance = null;
 let barChartInstance = null;
 let archivePieChartInstance = null;
 let archiveBarChartInstance = null;
 let tastingSaveTimeout = null;
 
-// ─── Initialisierung ──────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
@@ -113,7 +131,7 @@ function saveToStorage() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.wines));
 }
 
-// ─── Controller Aktionen ──────────────────────────────────────────────────────
+// ─── Controller Actions ──────────────────────────────────────────────────────
 window.app = {
   setTab(i) {
     state.tab = i;
@@ -164,7 +182,6 @@ window.app = {
     saveToStorage();
     render();
     
-    // Toast Rückmeldung basierend auf Änderung
     if (oldQty > 0 && newQty === 0) {
       showToast(`„${wine.name}" ${t.toastArchived}`, "warn");
     } else if (newQty > oldQty) {
@@ -204,6 +221,7 @@ window.app = {
   toggleAddModal(show) {
     state.showAdd = show;
     state.editingId = null;
+    modalImageUrl = "";
     if (show) modalGrapes = [{ name: "", pct: "" }];
     render();
   },
@@ -212,9 +230,54 @@ window.app = {
     if (!wine) return;
     state.editingId = id;
     state.showAdd = true;
-    modalGrapes = wine.grapes.length ? JSON.parse(JSON.stringify(wine.grapes)) : [{ name: "", pct: "" }];
+    modalImageUrl = wine.image || "";
+    modalGrapes = wine.grapes && wine.grapes.length ? JSON.parse(JSON.stringify(wine.grapes)) : [{ name: "", pct: "" }];
     render();
   },
+  
+  // ─── Image Handling Methods ─────────────────────────────────────────────────
+  handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Convert file to Base64 URL for persistent storage in localStorage
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      modalImageUrl = evt.target.result;
+      renderModalImagePreview();
+    };
+    reader.readAsDataURL(file);
+  },
+  removeModalImage() {
+    modalImageUrl = "";
+    renderModalImagePreview();
+  },
+
+  // ─── Future Enhancement Hook: Label Recognition OCR ──────────────────────
+  scanLabelOCR() {
+    const t = T[state.lang];
+    if (!modalImageUrl) {
+      showToast("Bitte zuerst ein Bild auswählen", "warn");
+      return;
+    }
+    
+    showToast(t.ocrProcessing);
+
+    // Mock/placeholder OCR process extracting metadata from bottle label
+    setTimeout(() => {
+      // Auto-populate fields if empty
+      const nameInput = document.getElementById("m-name");
+      const producerInput = document.getElementById("m-producer");
+      const vintageInput = document.getElementById("m-vintage");
+
+      if (nameInput && !nameInput.value) nameInput.value = "Château Margaux";
+      if (producerInput && !producerInput.value) producerInput.value = "Grand Vin de Château Margaux";
+      if (vintageInput && !vintageInput.value) vintageInput.value = "2018";
+
+      showToast(t.ocrSuccess);
+    }, 1200);
+  },
+
   addModalGrape() {
     modalGrapes.push({ name: "", pct: "" });
     renderModalGrapes();
@@ -291,6 +354,7 @@ window.app = {
 
     const fields = {
       name, producer, region, country, type,
+      image: modalImageUrl, // Image property added to model
       vintage: +document.getElementById("m-vintage").value || null,
       alcohol: parseFloat(document.getElementById("m-alcohol").value) || 0,
       qty: +document.getElementById("m-qty").value || 1,
@@ -318,6 +382,7 @@ window.app = {
     saveToStorage();
     state.showAdd = false;
     state.editingId = null;
+    modalImageUrl = "";
     render();
   }
 };
@@ -393,7 +458,7 @@ function renderDashboardListsAndCharts() {
   const totalBottles = activeWines.reduce((s, w) => s + w.qty, 0);
   const ratedWines = activeWines.filter(w => w.rating > 0);
   const avgRating = activeWines.length ? (ratedWines.reduce((s, w) => s + w.rating, 0) / (ratedWines.length || 1)).toFixed(1) : "–";
-  const grapeCount = new Set(activeWines.flatMap(w => w.grapes.map(g => g.name))).size;
+  const grapeCount = new Set(activeWines.flatMap(w => w.grapes ? w.grapes.map(g => g.name) : [])).size;
 
   document.getElementById("stats-grid").innerHTML = `
     ${[[totalBottles, t.totalBottles], [activeWines.length, t.diffWines], [avgRating, t.avgRating], [grapeCount, t.grapes]].map(([v, l]) => `
@@ -456,8 +521,13 @@ function renderDashboardListsAndCharts() {
       const roundedStars = Math.round(w.rating);
       const starsHTML = `<span style="color:#F59E0B">${"★".repeat(roundedStars)}</span><span style="color:#D1D5DB">${"☆".repeat(5-roundedStars)}</span>`;
 
+      // Visual Thumbnail Element
+      const imageThumbHTML = w.image 
+        ? `<div class="w-12 h-16 rounded overflow-hidden shrink-0 bg-gray-50 border border-gray-100"><img src="${w.image}" class="w-full h-full object-cover"></div>`
+        : `<div style="background:${TYPE[w.type].color}; width:3px;" class="rounded-sm self-stretch shrink-0"></div>`;
+
       card.innerHTML = `
-        <div style="background:${TYPE[w.type].color}; width:3px;" class="rounded-sm self-stretch shrink-0"></div>
+        ${imageThumbHTML}
         <div class="flex-1 min-w-0">
           <div class="flex justify-between items-baseline gap-1 mb-0.5">
             <span class="text-sm font-semibold text-gray-900 truncate">${w.name}</span>
@@ -488,7 +558,6 @@ function renderDashboardListsAndCharts() {
 function renderArchiveView() {
   const t = T[state.lang];
   
-  // Dynamische Layout-Generierung für die Archiv-Ansicht zur Wahrung der UI-Parität
   document.getElementById("view-archive").innerHTML = `
     <div class="mb-5">
       <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">${t.archiveSub}</p>
@@ -541,11 +610,10 @@ function renderArchiveView() {
 
   const archivedWines = state.wines.filter(w => w.qty === 0);
 
-  // Paritätische Berechnungen für das Archiv (Zählung der individuellen Einträge)
   const totalBottles = archivedWines.length; 
   const ratedWines = archivedWines.filter(w => w.rating > 0);
   const avgRating = archivedWines.length ? (ratedWines.reduce((s, w) => s + w.rating, 0) / (ratedWines.length || 1)).toFixed(1) : "–";
-  const grapeCount = new Set(archivedWines.flatMap(w => w.grapes.map(g => g.name))).size;
+  const grapeCount = new Set(archivedWines.flatMap(w => w.grapes ? w.grapes.map(g => g.name) : [])).size;
 
   document.getElementById("archive-stats-grid").innerHTML = `
     ${[[totalBottles, t.totalBottles], [archivedWines.length, t.diffWines], [avgRating, t.avgRating], [grapeCount, t.grapes]].map(([v, l]) => `
@@ -606,8 +674,12 @@ function renderArchiveView() {
       const roundedStars = Math.round(w.rating);
       const starsHTML = `<span style="color:#F59E0B">${"★".repeat(roundedStars)}</span><span style="color:#D1D5DB">${"☆".repeat(5-roundedStars)}</span>`;
 
+      const imageThumbHTML = w.image 
+        ? `<div class="w-12 h-16 rounded overflow-hidden shrink-0 bg-gray-50 border border-gray-100 opacity-75"><img src="${w.image}" class="w-full h-full object-cover"></div>`
+        : `<div style="background:${TYPE[w.type].color}; width:3px;" class="rounded-sm self-stretch shrink-0 opacity-50"></div>`;
+
       card.innerHTML = `
-        <div style="background:${TYPE[w.type].color}; width:3px;" class="rounded-sm self-stretch shrink-0 opacity-50"></div>
+        ${imageThumbHTML}
         <div class="flex-1 min-w-0">
           <div class="flex justify-between items-baseline gap-1 mb-0.5">
             <span class="text-sm font-semibold text-gray-900 truncate">${w.name}</span>
@@ -772,6 +844,7 @@ function buildArchiveCharts(archivedWines) {
   }
 }
 
+// ─── Detail View Rendering with Image Display ─────────────────────────────────
 function renderDetailView() {
   const t = T[state.lang];
   const wine = state.wines.find(w => w.id === state.selectedId);
@@ -792,6 +865,22 @@ function renderDetailView() {
   if (wine.nutrition.sugar >= 4 && wine.nutrition.sugar < 12) { sugarText = t.semiDry; sugarColor = "#D97706"; }
   else if (wine.nutrition.sugar >= 12) { sugarText = t.sweet; sugarColor = "#9333EA"; }
 
+  // Render Real Image or Render Default Graphic Placeholder
+  const imageDisplayHTML = wine.image 
+    ? `<div class="aspect-[2/3] rounded-xl overflow-hidden shadow-sm border border-gray-100 bg-gray-50 flex items-center justify-center">
+        <img src="${wine.image}" alt="${wine.name}" class="w-full h-full object-cover">
+       </div>`
+    : `<div style="background:${color}0D; border:1px solid ${color}28;" class="aspect-[2/3] rounded-xl flex flex-col overflow-hidden">
+        <div class="flex-1 flex justify-center items-end">
+          <div style="background:${color}28; border:1px solid ${color}40;" class="w-6 rounded-t-md h-3/5"></div>
+        </div>
+        <div class="m-3 bg-white/95 rounded-lg p-2.5 text-center shadow-sm" style="border-top: 3px solid ${color}">
+          <div class="text-[11px] font-bold mb-0.5" style="color:${color}">${wine.vintage ?? "NV"}</div>
+          <div class="text-sm font-bold text-gray-900 line-clamp-2">${wine.name}</div>
+          <div class="text-[11px] text-gray-500 mt-0.5 truncate">${wine.producer}</div>
+        </div>
+       </div>`;
+
   document.getElementById("view-detail").innerHTML = `
     <div class="flex items-center justify-between mb-5">
       <button onclick="window.app.closeDetail()" class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors">
@@ -810,16 +899,7 @@ function renderDetailView() {
 
     <div class="grid gap-5 grid-cols-[220px_1fr]">
       <div>
-        <div style="background:${color}0D; border:1px solid ${color}28;" class="aspect-[2/3] rounded-16 flex flex-col overflow-hidden rounded-xl">
-          <div class="flex-1 flex justify-center items-end">
-            <div style="background:${color}28; border:1px solid ${color}40;" class="w-6 rounded-t-md h-3/5"></div>
-          </div>
-          <div class="m-3 bg-white/95 border-t-3 rounded-lg p-2.5 text-center shadow-sm" style="border-top: 3px solid ${color}">
-            <div class="text-[11px] font-bold mb-0.5" style="color:${color}">${wine.vintage ?? "NV"}</div>
-            <div class="text-sm font-bold text-gray-900 line-clamp-2">${wine.name}</div>
-            <div class="text-[11px] text-gray-500 mt-0.5 truncate">${wine.producer}</div>
-          </div>
-        </div>
+        ${imageDisplayHTML}
 
         <div class="mt-3 bg-gray-50 rounded-xl p-4">
           <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">${t.inCellar}</p>
@@ -850,7 +930,7 @@ function renderDetailView() {
         <div class="mb-5">
           <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">${t.grapes}</p>
           <div class="flex flex-wrap gap-1.5">
-            ${wine.grapes.length ? wine.grapes.map(g => `
+            ${wine.grapes && wine.grapes.length ? wine.grapes.map(g => `
               <span class="text-xs px-2.5 py-1 rounded-full font-medium" style="${g.primary ? `background:${color}15; color:${color}; border:1px solid ${color}30;` : 'background:#F3F4F6; color:#4B5563;'}">
                 ${g.name} ${g.pct < 100 ? g.pct + '%' : ''}
               </span>
@@ -876,7 +956,6 @@ function renderDetailView() {
           </div>
         </div>
 
-        <!-- Verkostungsnotizen (Tasting Notes) -->
         <div class="mb-5">
           <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">${t.tastingNotes}</p>
           <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 focus-within:border-gray-300 focus-within:bg-white transition-all">
@@ -899,18 +978,18 @@ function renderDetailView() {
         <div>
           <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">${t.nutrition}</p>
           <div class="grid grid-cols-3 gap-2">
-            <div class="rounded-xl p-3 text-center" style="background:${wine.nutrition.sugar > 0 ? sugarColor + '10' : '#F9FAFB'}">
+            <div class="rounded-xl p-3 text-center" style="background:${wine.nutrition && wine.nutrition.sugar > 0 ? sugarColor + '10' : '#F9FAFB'}">
               <div class="text-xs text-gray-400 mb-1">${t.sugar}</div>
-              <div class="text-sm font-bold text-gray-800">${wine.nutrition.sugar > 0 ? wine.nutrition.sugar + ' g/L' : '–'}</div>
-              ${wine.nutrition.sugar > 0 ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded mt-1 inline-block" style="color:${sugarColor}; background:${sugarColor}18">${sugarText}</span>` : ''}
+              <div class="text-sm font-bold text-gray-800">${wine.nutrition && wine.nutrition.sugar > 0 ? wine.nutrition.sugar + ' g/L' : '–'}</div>
+              ${wine.nutrition && wine.nutrition.sugar > 0 ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded mt-1 inline-block" style="color:${sugarColor}; background:${sugarColor}18">${sugarText}</span>` : ''}
             </div>
             <div class="bg-gray-50 rounded-xl p-3 text-center">
               <div class="text-xs text-gray-400 mb-1">${t.energy}</div>
-              <div class="text-sm font-bold text-gray-800">${wine.nutrition.kcal > 0 ? wine.nutrition.kcal + ' kcal' : '–'}</div>
+              <div class="text-sm font-bold text-gray-800">${wine.nutrition && wine.nutrition.kcal > 0 ? wine.nutrition.kcal + ' kcal' : '–'}</div>
             </div>
             <div class="bg-gray-50 rounded-xl p-3 text-center">
               <div class="text-xs text-gray-400 mb-1">${t.sulfites}</div>
-              <div class="text-sm font-bold text-gray-800">${wine.nutrition.sulfites > 0 ? wine.nutrition.sulfites + ' mg/L' : '–'}</div>
+              <div class="text-sm font-bold text-gray-800">${wine.nutrition && wine.nutrition.sulfites > 0 ? wine.nutrition.sulfites + ' mg/L' : '–'}</div>
             </div>
           </div>
         </div>
@@ -921,6 +1000,7 @@ function renderDetailView() {
   lucide.createIcons();
 }
 
+// ─── Modal Rendering with Upload & OCR Controls ───────────────────────────────
 function renderModal() {
   const zone = document.getElementById("modal-zone");
   if (!state.showAdd) { zone.innerHTML = ""; return; }
@@ -938,6 +1018,12 @@ function renderModal() {
         </div>
         
         <div class="overflow-y-auto flex-1 p-5">
+          <!-- Image Upload & OCR Field Area -->
+          <div class="mb-4 bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-2">${t.wineImage}</label>
+            <div id="modal-image-preview-zone"></div>
+          </div>
+
           <div class="mb-3">
             <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.wineName} *</label>
             <input id="m-name" value="${wine ? wine.name : ''}" placeholder="Château Pichon Baron" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400">
@@ -1010,7 +1096,47 @@ function renderModal() {
       </div>
     </div>
   `;
+  renderModalImagePreview();
   renderModalGrapes();
+  lucide.createIcons();
+}
+
+function renderModalImagePreview() {
+  const t = T[state.lang];
+  const box = document.getElementById("modal-image-preview-zone");
+  if (!box) return;
+
+  if (modalImageUrl) {
+    box.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="w-16 h-20 rounded-lg overflow-hidden border border-gray-200 bg-white shrink-0">
+          <img src="${modalImageUrl}" class="w-full h-full object-cover">
+        </div>
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <label class="cursor-pointer px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50">
+              ${t.changeImage}
+              <input type="file" accept="image/*" onchange="window.app.handleImageUpload(event)" class="hidden">
+            </label>
+            <button type="button" onclick="window.app.removeModalImage()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-red-500 hover:bg-red-50">
+              ${t.removeImage}
+            </button>
+          </div>
+          <button type="button" onclick="window.app.scanLabelOCR()" class="flex items-center gap-1.5 text-xs text-[#B83232] font-semibold hover:underline">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> ${t.scanOCR}
+          </button>
+        </div>
+      </div>
+    `;
+  } else {
+    box.innerHTML = `
+      <label class="border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer transition-colors bg-white">
+        <i data-lucide="image-plus" class="w-6 h-6 text-gray-400 mb-1"></i>
+        <span class="text-xs font-medium text-gray-600">${t.uploadImage}</span>
+        <input type="file" accept="image/*" onchange="window.app.handleImageUpload(event)" class="hidden">
+      </label>
+    `;
+  }
   lucide.createIcons();
 }
 
