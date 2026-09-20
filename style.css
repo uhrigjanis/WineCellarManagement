@@ -111,7 +111,13 @@ touch-action: manipulation;
 .responsive-image {
     max-width: 100%;
     height: auto;
-    object-fit: cover;
+    object-fit: contain;
+}
+
+/* Ensure all images scale properly */
+img {
+    max-width: 100%;
+    height: auto;
 }
 
 /* Touch-friendly button sizes */
@@ -141,4 +147,18 @@ touch-action: manipulation;
     .form-input-mobile { font-size: 16px !important; padding: 12px 16px !important; }
     .modal-full-width { width: 100% !important; max-width: 100% !important; margin: 0 !important; }
     .stats-grid-responsive { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* Wine image display constraints for responsive design */
+.wine-image-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.wine-image-container img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
 }
