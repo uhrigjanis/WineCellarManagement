@@ -111,6 +111,7 @@ let pieChartInstance = null;
 let barChartInstance = null;
 let archivePieChartInstance = null;
 let archiveBarChartInstance = null;
+let mobileMenuOpen = false;
 let tastingSaveTimeout = null;
 
 // ─── Non-AI HTML5 Canvas Image Preprocessor ──────────────────────────────────
@@ -266,6 +267,23 @@ window.app = {
     }
   },
   toggleAddModal(show) {
+
+  toggleMobileMenu(show) {
+    mobileMenuOpen = typeof show === "boolean" ? show : !mobileMenuOpen;
+    const menu = document.getElementById("mobile-nav-menu");
+    const overlay = document.getElementById("mobile-nav-overlay");
+    if (mobileMenuOpen) {
+      menu.classList.add("open");
+      overlay.classList.add("open");
+      document.body.style.overflow = "hidden";
+    } else {
+      menu.classList.remove("open");
+      overlay.classList.remove("open");
+      document.body.style.overflow = "";
+    }
+    const ml = document.getElementById("mobile-nav-lang");
+    if (ml) ml.textContent = "Sprache: " + (state.lang === "de" ? "DE" : "EN");
+  },
     state.showAdd = show;
     state.editingId = null;
     modalImageUrl = "";
@@ -410,17 +428,35 @@ window.app = {
 
 // ─── Render Engine ────────────────────────────────────────────────────────────
 function render() {
+
+  const mc = document.getElementById("mobile-nav-cellar");
+  const ma = document.getElementById("mobile-nav-archive");
+  const ml2 = document.getElementById("mobile-nav-lang");
+  const bc = document.getElementById("bottom-nav-cellar");
+  const ba = document.getElementById("bottom-nav-archive");
+  const bd = document.getElementById("bottom-nav-add");
+  if (mc) mc.textContent = t.navCellar;
+  if (ma) ma.textContent = t.navArchive;
+  if (ml2) ml2.textContent = "Sprache: " + (state.lang === "de" ? "DE" : "EN");
+  if (bc) bc.textContent = t.navCellar;
+  if (ba) ba.textContent = t.navArchive;
+  if (bd) bd.textContent = t.addWine;
   const t = T[state.lang];
   
   document.getElementById("nav-zone").innerHTML = `
-    <div class="flex items-center justify-between pb-4 mb-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+    <div class="flex items-center justify-between pb-4 mb-5 border-b border-gray-100 sticky top-0 bg-white z-10 mobile-header">
+      <div class="header-left flex items-center gap-2">
+        <button onclick="window.app.toggleMobileMenu()" class="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors">
+          <i data-lucide="menu" class="w-5 h-5 text-gray-600"></i>
+        </button>
       <button onclick="window.app.setTab(0)" class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#B83232]">
           <i data-lucide="wine" class="text-white w-4 h-4"></i>
         </div>
         <span class="font-bold text-gray-900 tracking-tight">Weinkeller</span>
       </button>
-      <nav class="flex items-center gap-1">
+      </div>
+      <nav class="hidden lg:flex items-center gap-1 desktop-nav">
         ${[t.navCellar, t.navArchive].map((label, i) => `
           <button onclick="window.app.setTab(${i})" class="px-3 py-1.5 rounded-lg text-sm transition-colors ${state.tab===i ? 'bg-gray-100 text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-700'}">
             ${label}
