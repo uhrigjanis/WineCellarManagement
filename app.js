@@ -111,8 +111,8 @@ let pieChartInstance = null;
 let barChartInstance = null;
 let archivePieChartInstance = null;
 let archiveBarChartInstance = null;
-let mobileMenuOpen = false;
 let tastingSaveTimeout = null;
+let mobileMenuOpen = false;
 
 // ─── Non-AI HTML5 Canvas Image Preprocessor ──────────────────────────────────
 function preprocessImageForOCR(imageSrc) {
@@ -269,21 +269,22 @@ window.app = {
   toggleAddModal(show) {
 
   toggleMobileMenu(show) {
-    mobileMenuOpen = typeof show === "boolean" ? show : !mobileMenuOpen;
-    const menu = document.getElementById("mobile-nav-menu");
-    const overlay = document.getElementById("mobile-nav-overlay");
+    mobileMenuOpen = typeof show === 'boolean' ? show : !mobileMenuOpen;
+    const menu = document.getElementById('mobile-nav-menu');
+    const overlay = document.getElementById('mobile-nav-overlay');
     if (mobileMenuOpen) {
-      menu.classList.add("open");
-      overlay.classList.add("open");
-      document.body.style.overflow = "hidden";
+      menu.classList.add('open');
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
     } else {
-      menu.classList.remove("open");
-      overlay.classList.remove("open");
-      document.body.style.overflow = "";
+      menu.classList.remove('open');
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
     }
-    const ml = document.getElementById("mobile-nav-lang");
-    if (ml) ml.textContent = "Sprache: " + (state.lang === "de" ? "DE" : "EN");
+    const ml = document.getElementById('mobile-nav-lang');
+    if (ml) ml.textContent = 'Sprache: ' + (state.lang === 'de' ? 'DE' : 'EN');
   },
+
     state.showAdd = show;
     state.editingId = null;
     modalImageUrl = "";
@@ -429,18 +430,36 @@ window.app = {
 // ─── Render Engine ────────────────────────────────────────────────────────────
 function render() {
 
-  const mc = document.getElementById("mobile-nav-cellar");
-  const ma = document.getElementById("mobile-nav-archive");
-  const ml2 = document.getElementById("mobile-nav-lang");
-  const bc = document.getElementById("bottom-nav-cellar");
-  const ba = document.getElementById("bottom-nav-archive");
-  const bd = document.getElementById("bottom-nav-add");
+  const mc = document.getElementById('mobile-nav-cellar');
+  const ma = document.getElementById('mobile-nav-archive');
+  const ml2 = document.getElementById('mobile-nav-lang');
+  const bc = document.getElementById('bottom-nav-cellar');
+  const ba = document.getElementById('bottom-nav-archive');
+  const bd = document.getElementById('bottom-nav-add');
   if (mc) mc.textContent = t.navCellar;
   if (ma) ma.textContent = t.navArchive;
-  if (ml2) ml2.textContent = "Sprache: " + (state.lang === "de" ? "DE" : "EN");
+  if (ml2) ml2.textContent = 'Sprache: ' + (state.lang === 'de' ? 'DE' : 'EN');
   if (bc) bc.textContent = t.navCellar;
   if (ba) ba.textContent = t.navArchive;
   if (bd) bd.textContent = t.addWine;
+  
+  const bottomCellarBtn = document.getElementById('bottom-nav-cellar-btn');
+  const bottomArchiveBtn = document.getElementById('bottom-nav-archive-btn');
+  const bottomAddBtn = document.getElementById('bottom-nav-add-btn');
+  if (bottomCellarBtn) {
+    bottomCellarBtn.classList.toggle('active', state.tab === 0);
+    bottomCellarBtn.querySelector('span').textContent = t.navCellar;
+  }
+  if (bottomArchiveBtn) {
+    bottomArchiveBtn.classList.toggle('active', state.tab === 1);
+    bottomArchiveBtn.querySelector('span').textContent = t.navArchive;
+  }
+  if (bottomAddBtn) {
+    bottomAddBtn.querySelector('span').textContent = t.addWine;
+  }
+
+
+
   const t = T[state.lang];
   
   document.getElementById("nav-zone").innerHTML = `
@@ -449,12 +468,12 @@ function render() {
         <button onclick="window.app.toggleMobileMenu()" class="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors">
           <i data-lucide="menu" class="w-5 h-5 text-gray-600"></i>
         </button>
-      <button onclick="window.app.setTab(0)" class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#B83232]">
-          <i data-lucide="wine" class="text-white w-4 h-4"></i>
-        </div>
-        <span class="font-bold text-gray-900 tracking-tight">Weinkeller</span>
-      </button>
+        <button onclick="window.app.setTab(0)" class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#B83232]">
+            <i data-lucide="wine" class="text-white w-4 h-4"></i>
+          </div>
+          <span class="font-bold text-gray-900 tracking-tight">Weinkeller</span>
+        </button>
       </div>
       <nav class="hidden lg:flex items-center gap-1 desktop-nav">
         ${[t.navCellar, t.navArchive].map((label, i) => `
@@ -463,7 +482,7 @@ function render() {
           </button>
         `).join('')}
       </nav>
-      <div class="flex items-center gap-3">
+      <div class="header-right flex items-center gap-3">
         <button onclick="window.app.toggleLang()" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 transition-colors">
           <i data-lucide="globe" class="w-3.5 h-3.5"></i>
           ${state.lang === 'de' ? 'EN' : 'DE'}
@@ -950,7 +969,7 @@ function renderDetailView() {
       </div>
     </div>
 
-    <div class="grid gap-5 grid-cols-[220px_1fr]">
+    <div class="grid gap-5 grid-cols-[220px_1fr] detail-grid-mobile">
       <div>
         ${imageDisplayHTML}
 
@@ -1064,7 +1083,7 @@ function renderModal() {
 
   zone.innerHTML = `
     <div class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div class="bg-white w-full max-w-[530px] max-h-[90vh] flex flex-col shadow-2xl rounded-xl overflow-hidden">
+      <div class="bg-white w-full max-w-[530px] max-h-[90vh] flex flex-col shadow-2xl rounded-xl overflow-hidden modal-full-width modal-scroll-optimized">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <h2 class="font-bold text-base text-gray-900">${isEdit ? t.editModalTitle : t.addModalTitle}</h2>
           <button onclick="window.app.toggleAddModal(false)" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-4 h-4"></i></button>
@@ -1078,16 +1097,16 @@ function renderModal() {
 
           <div class="mb-3">
             <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.wineName} *</label>
-            <input id="m-name" value="${wine ? wine.name : ''}" placeholder="Pichon Longueville Comtesse de Lalande" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400">
+            <input id="m-name" value="${wine ? wine.name : ''}" placeholder="Pichon Longueville Comtesse de Lalande" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400 form-input-mobile touch-button">
             <span id="m-name-err" class="text-xs text-red-500 mt-1 hidden">${t.mandatory}</span>
           </div>
           <div class="mb-3">
             <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.producer} *</label>
-            <input id="m-producer" value="${wine ? wine.producer : ''}" placeholder="Château Pichon Longueville" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400">
+            <input id="m-producer" value="${wine ? wine.producer : ''}" placeholder="Château Pichon Longueville" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-400 form-input-mobile touch-button">
             <span id="m-producer-err" class="text-xs text-red-500 mt-1 hidden">${t.mandatory}</span>
           </div>
 
-          <div class="grid grid-cols-2 gap-3 mb-3">
+          <div class="grid grid-cols-2 gap-3 mb-3 modal-grid-mobile">
             <div>
               <label class="block text-[11px] font-semibold text-gray-400 uppercase mb-1">${t.vintage}</label>
               <input id="m-vintage" type="number" value="${wine ? (wine.vintage ?? '') : ''}" placeholder="2020" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none">
