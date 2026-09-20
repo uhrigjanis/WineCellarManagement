@@ -111,7 +111,13 @@ touch-action: manipulation;
 .responsive-image {
     max-width: 100%;
     height: auto;
-    object-fit: cover;
+    object-fit: contain;
+}
+
+/* Ensure all images scale properly */
+img {
+    max-width: 100%;
+    height: auto;
 }
 
 /* Touch-friendly button sizes */
