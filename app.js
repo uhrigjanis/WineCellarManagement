@@ -594,7 +594,7 @@ function renderDashboardListsAndCharts() {
       const starsHTML = `<span style="color:#F59E0B">${"★".repeat(roundedStars)}</span><span style="color:#D1D5DB">${"☆".repeat(5-roundedStars)}</span>`;
 
       const imageThumbHTML = w.image 
-        ? `<div class="w-12 h-16 rounded overflow-hidden shrink-0 bg-gray-50 border border-gray-100"><img src="${w.image}" class="w-full h-full object-cover"></div>`
+        ? `<div class="w-12 h-16 rounded overflow-hidden shrink-0 bg-gray-50 border border-gray-100 flex items-center justify-center"><img src="${w.image}" class="w-full h-full object-contain max-w-full max-h-full"></div>`
         : `<div style="background:${TYPE[w.type].color}; width:3px;" class="rounded-sm self-stretch shrink-0"></div>`;
 
       card.innerHTML = `
@@ -746,7 +746,7 @@ function renderArchiveView() {
       const starsHTML = `<span style="color:#F59E0B">${"★".repeat(roundedStars)}</span><span style="color:#D1D5DB">${"☆".repeat(5-roundedStars)}</span>`;
 
       const imageThumbHTML = w.image 
-        ? `<div class="w-12 h-16 rounded overflow-hidden shrink-0 bg-gray-50 border border-gray-100 opacity-75"><img src="${w.image}" class="w-full h-full object-cover"></div>`
+        ? `<div class="w-12 h-16 rounded overflow-hidden shrink-0 bg-gray-50 border border-gray-100 opacity-75 flex items-center justify-center"><img src="${w.image}" class="w-full h-full object-contain max-w-full max-h-full"></div>`
         : `<div style="background:${TYPE[w.type].color}; width:3px;" class="rounded-sm self-stretch shrink-0 opacity-50"></div>`;
 
       card.innerHTML = `
@@ -938,8 +938,8 @@ function renderDetailView() {
 
   const imageDisplayHTML = wine.image 
     ? `<div class="aspect-[2/3] rounded-xl overflow-hidden shadow-sm border border-gray-100 bg-gray-50 flex items-center justify-center">
-        <img src="${wine.image}" alt="${wine.name}" class="w-full h-full object-cover">
-       </div>`
+        <img src="${wine.image}" alt="${wine.name}" class="w-full h-full object-contain max-w-full max-h-full">
+       </div>
     : `<div style="background:${color}0D; border:1px solid ${color}28;" class="aspect-[2/3] rounded-xl flex flex-col overflow-hidden">
         <div class="flex-1 flex justify-center items-end">
           <div style="background:${color}28; border:1px solid ${color}40;" class="w-6 rounded-t-md h-3/5"></div>
@@ -1178,8 +1178,8 @@ function renderModalImagePreview() {
   if (modalImageUrl) {
     box.innerHTML = `
       <div class="flex items-center gap-3">
-        <div class="w-16 h-20 rounded-lg overflow-hidden border border-gray-200 bg-white shrink-0">
-          <img src="${modalImageUrl}" class="w-full h-full object-cover">
+        <div class="w-16 h-20 rounded-lg overflow-hidden border border-gray-200 bg-white shrink-0 flex items-center justify-center">
+          <img src="${modalImageUrl}" class="w-full h-full object-contain max-w-full max-h-full">
         </div>
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2">
