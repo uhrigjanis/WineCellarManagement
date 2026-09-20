@@ -427,6 +427,7 @@ window.app = {
 
 // ─── Render Engine ────────────────────────────────────────────────────────────
 function render() {
+  const t = T[state.lang];
 
   const mc = document.getElementById('mobile-nav-cellar');
   const ma = document.getElementById('mobile-nav-archive');
@@ -458,7 +459,6 @@ function render() {
 
 
 
-  const t = T[state.lang];
   
   document.getElementById("nav-zone").innerHTML = `
     <div class="flex items-center justify-between pb-4 mb-5 border-b border-gray-100 sticky top-0 bg-white z-10 mobile-header">
