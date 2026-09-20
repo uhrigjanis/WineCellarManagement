@@ -2,93 +2,161 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#B83232">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>Weinkeller Management</title>
 
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- Tesseract.js for Browser Label OCR -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <link rel="stylesheet" href="style.css">
 
   <style>
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    .animate-fadeIn {
-      animation: fadeIn 0.2s ease-out forwards;
+    .animate-fadeIn { animation: fadeIn 0.2s ease-out forwards; }
+    .mobile-nav-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5); z-index: 100;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
     }
+    .mobile-nav-overlay.open { opacity: 1; visibility: visible; }
+    .mobile-nav-menu {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: 280px; max-width: 80vw; background: white; z-index: 101;
+      box-shadow: -4px 0 16px rgba(0,0,0,0.1);
+      transform: translateX(100%); transition: transform 0.3s;
+    }
+    .mobile-nav-menu.open { transform: translateX(0); }
+    .mobile-nav-item {
+      padding: 14px 16px; border-bottom: 1px solid #f3f4f6;
+      display: flex; align-items: center; gap: 12px; text-align: left;
+    }
+    .mobile-nav-item:last-child { border-bottom: none; }
+    .bottom-nav-mobile {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      background: white; border-top: 1px solid #e5e7eb;
+      display: none; box-shadow: 0 -4px 16px rgba(0,0,0,0.05);
+    }
+    @media (max-width: 768px) {
+      .bottom-nav-mobile { display: flex; }
+      .bottom-nav-mobile .nav-item {
+        flex: 1; text-align: center; padding: 12px 8px;
+        display: flex; flex-direction: column; align-items: center; gap: 4px;
+        min-height: 44px;
+      }
+    }
+    button, [role="button"], input[type="number"], input[type="text"],
+    input[type="email"], input[type="password"], select, textarea {
+      min-height: 44px; min-width: 44px;
+    }
+    button:focus-visible, a:focus-visible, input:focus-visible,
+    select:focus-visible, textarea:focus-visible {
+      outline: 2px solid #B83232; outline-offset: 2px;
+    }
+    touch-action: manipulation;
+    .responsive-image { max-width: 100%; height: auto; object-fit: cover; }
+    .stats-grid-responsive { grid-template-columns: repeat(2, 1fr) !important; }
+    @media (min-width: 481px) and (max-width: 768px) {
+      .stats-grid-responsive { grid-template-columns: repeat(4, 1fr) !important; }
+    }
+    .chart-container-mobile { height: 200px !important; }
+    .modal-full-width { width: 100% !important; max-width: 100% !important; margin: 0 !important; }
+    .detail-grid-mobile { grid-template-columns: 1fr !important; }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen font-sans antialiased selection:bg-stone-200">
 
-  <div id="app-container" class="max-w-5xl mx-auto p-4 sm:p-6 md:p-8 hidden">
-    <!-- Navigation Bar -->
-    <div id="nav-zone"></div>
-
-    <!-- Main Views -->
-    <main>
-      <!-- Cellar / Dashboard View -->
-      <div id="view-dashboard" class="view-pane hidden">
-        <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-          <div class="flex-1 min-w-[240px] relative">
-            <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
-            <input type="text" id="search-input" oninput="window.app.handleSearch(this.value)" placeholder="Wein oder Weingut …" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-9 pr-4 py-2 text-sm outline-none focus:border-gray-400 transition-colors">
+<div id="mobile-nav-overlay" class="mobile-nav-overlay" onclick="window.app.toggleMobileMenu(false)"></div>
+<div id="mobile-nav-menu" class="mobile-nav-menu">
+  <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+    <span class="font-bold text-gray-900">Menü</span>
+    <button onclick="window.app.toggleMobileMenu(false)" class="text-gray-400 hover:text-gray-600 p-2 -mr-2">
+      <i data-lucide="x" class="w-5 h-5"></i>
+    </button>
+  </div>
+  <nav class="flex flex-col">
+    <button onclick="window.app.setTab(0);window.app.toggleMobileMenu(false)" class="mobile-nav-item">
+      <i data-lucide="home" class="w-4 h-4 text-gray-500"></i>
+      <span id="mobile-nav-cellar">Mein Keller</span>
+    </button>
+    <button onclick="window.app.setTab(1);window.app.toggleMobileMenu(false)" class="mobile-nav-item">
+      <i data-lucide="archive" class="w-4 h-4 text-gray-500"></i>
+      <span id="mobile-nav-archive">Archiv</span>
+    </button>
+    <button onclick="window.app.toggleLang();window.app.toggleMobileMenu(false)" class="mobile-nav-item">
+      <i data-lucide="globe" class="w-4 h-4 text-gray-500"></i>
+      <span id="mobile-nav-lang">Sprache: DE</span>
+    </button>
+  </nav>
+</div>
+<div id="bottom-nav" class="bottom-nav-mobile bg-white border-t border-gray-100">
+  <button onclick="window.app.setTab(0)" class="nav-item text-xs font-medium text-gray-500 hover:text-[#B83232] transition-colors" id="bottom-nav-cellar-btn">
+    <i data-lucide="wine" class="w-5 h-5"></i>
+    <span id="bottom-nav-cellar">Keller</span>
+  </button>
+  <button onclick="window.app.setTab(1)" class="nav-item text-xs font-medium text-gray-500 hover:text-[#B83232] transition-colors" id="bottom-nav-archive-btn">
+    <i data-lucide="archive" class="w-5 h-5"></i>
+    <span id="bottom-nav-archive">Archiv</span>
+  </button>
+  <button onclick="window.app.toggleAddModal(true)" class="nav-item text-xs font-medium text-white bg-[#B83232] hover:opacity-90 transition-colors rounded-lg m-2 py-2" id="bottom-nav-add-btn">
+    <i data-lucide="plus" class="w-5 h-5"></i>
+    <span id="bottom-nav-add">Hinzufügen</span>
+  </button>
+</div>
+<div id="app-container" class="min-h-screen flex flex-col hidden">
+  <div class="flex-1 overflow-auto">
+    <div class="max-w-5xl mx-auto p-4 sm:p-6 md:p-8">
+      <div id="nav-zone"></div>
+      <main>
+        <div id="view-dashboard" class="view-pane hidden">
+          <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+            <div class="flex-1 min-w-[240px] relative">
+              <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-400"></i>
+              <input type="text" id="search-input" oninput="window.app.handleSearch(this.value)" placeholder="Wein oder Weingut …" class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-9 pr-4 py-2 text-sm outline-none focus:border-gray-400 transition-colors">
+            </div>
+            <div id="filter-buttons" class="flex flex-wrap gap-2"></div>
+            <button onclick="window.app.toggleAddModal(true)" class="hidden md:flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#B83232] hover:opacity-90 transition-opacity shrink-0">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span id="lbl-add-wine-btn">Wein hinzufügen</span>
+            </button>
           </div>
-          <div id="filter-buttons" class="flex flex-wrap gap-2"></div>
-          <button onclick="window.app.toggleAddModal(true)" class="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#B83232] hover:opacity-90 transition-opacity shrink-0">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            <span id="lbl-add-wine-btn">Wein hinzufügen</span>
-          </button>
-        </div>
-
-        <div id="stats-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6"></div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-          <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-            <h3 id="lbl-chart-types" class="text-sm font-semibold text-gray-900 mb-3">Weinarten</h3>
-            <div class="flex items-center gap-6">
-              <div class="w-28 h-28 shrink-0 relative"><canvas id="pieChartCanvas"></canvas></div>
-              <div id="pie-legend" class="flex-1 space-y-1.5"></div>
+          <div id="stats-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 stats-grid-responsive"></div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+              <h3 id="lbl-chart-types" class="text-sm font-semibold text-gray-900 mb-3">Weinarten</h3>
+              <div class="flex items-center gap-6">
+                <div class="w-28 h-28 shrink-0 relative chart-container-mobile"><canvas id="pieChartCanvas"></canvas></div>
+                <div id="pie-legend" class="flex-1 space-y-1.5"></div>
+              </div>
+            </div>
+            <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+              <h3 id="lbl-chart-regions" class="text-sm font-semibold text-gray-900 mb-3">Top Anbaugebiete</h3>
+              <div id="bar-chart-container" class="h-28 relative chart-container-mobile"><canvas id="barChartCanvas"></canvas></div>
             </div>
           </div>
-          <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-            <h3 id="lbl-chart-regions" class="text-sm font-semibold text-gray-900 mb-3">Top Anbaugebiete</h3>
-            <div id="bar-chart-container" class="h-28 relative"><canvas id="barChartCanvas"></canvas></div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100">
+            <div id="wines-count-info" class="text-sm font-semibold text-gray-700"></div>
+            <div id="sort-bar-zone"></div>
           </div>
+          <div id="wine-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
+          <div id="empty-state-zone" class="text-center py-12 text-sm text-gray-400 hidden"></div>
         </div>
-
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100">
-          <div id="wines-count-info" class="text-sm font-semibold text-gray-700"></div>
-          <div id="sort-bar-zone"></div>
-        </div>
-
-        <div id="wine-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
-        <div id="empty-state-zone" class="text-center py-12 text-sm text-gray-400 hidden"></div>
-      </div>
-
-      <!-- Archive View -->
-      <div id="view-archive" class="view-pane hidden"></div>
-
-      <!-- Detail View -->
-      <div id="view-detail" class="view-pane bg-white border border-gray-100 rounded-xl p-6 shadow-sm hidden"></div>
-    </main>
-
-    <!-- Dynamic Modal Container -->
-    <div id="modal-zone"></div>
-
-    <!-- Notification Toast Container -->
-    <div id="toast-zone" class="hidden"></div>
+        <div id="view-archive" class="view-pane hidden"></div>
+        <div id="view-detail" class="view-pane bg-white border border-gray-100 rounded-xl p-6 shadow-sm hidden"></div>
+      </main>
+      <div id="modal-zone"></div>
+      <div id="toast-zone" class="hidden"></div>
+    </div>
   </div>
-
-  <!-- Application Logic -->
-  <script src="app.js"></script>
+</div>
+<script src="app.js"></script>
 </body>
 </html>
