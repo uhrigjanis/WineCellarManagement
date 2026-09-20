@@ -939,7 +939,7 @@ function renderDetailView() {
   const imageDisplayHTML = wine.image 
     ? `<div class="aspect-[2/3] rounded-xl overflow-hidden shadow-sm border border-gray-100 bg-gray-50 flex items-center justify-center">
         <img src="${wine.image}" alt="${wine.name}" class="w-full h-full object-contain max-w-full max-h-full">
-       </div>
+       </div>`
     : `<div style="background:${color}0D; border:1px solid ${color}28;" class="aspect-[2/3] rounded-xl flex flex-col overflow-hidden">
         <div class="flex-1 flex justify-center items-end">
           <div style="background:${color}28; border:1px solid ${color}40;" class="w-6 rounded-t-md h-3/5"></div>
@@ -1178,7 +1178,7 @@ function renderModalImagePreview() {
   if (modalImageUrl) {
     box.innerHTML = `
       <div class="flex items-center gap-3">
-        <div class="w-16 h-20 rounded-lg overflow-hidden border border-gray-200 bg-white shrink-0 flex items-center justify-center">
+        <div class="w-16 h-20 rounded-lg overflow-hidden border border-gray-200 bg-white shrink-0">
           <img src="${modalImageUrl}" class="w-full h-full object-contain max-w-full max-h-full">
         </div>
         <div class="flex flex-col gap-2">
