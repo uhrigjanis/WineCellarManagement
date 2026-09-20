@@ -267,7 +267,12 @@ window.app = {
     }
   },
   toggleAddModal(show) {
-
+    state.showAdd = show;
+    state.editingId = null;
+    modalImageUrl = "";
+    if (show) modalGrapes = [{ name: "", pct: "" }];
+    render();
+  },
   toggleMobileMenu(show) {
     mobileMenuOpen = typeof show === 'boolean' ? show : !mobileMenuOpen;
     const menu = document.getElementById('mobile-nav-menu');
@@ -283,13 +288,6 @@ window.app = {
     }
     const ml = document.getElementById('mobile-nav-lang');
     if (ml) ml.textContent = 'Sprache: ' + (state.lang === 'de' ? 'DE' : 'EN');
-  },
-
-    state.showAdd = show;
-    state.editingId = null;
-    modalImageUrl = "";
-    if (show) modalGrapes = [{ name: "", pct: "" }];
-    render();
   },
   openEditModal(id) {
     const wine = state.wines.find(w => w.id === id);
