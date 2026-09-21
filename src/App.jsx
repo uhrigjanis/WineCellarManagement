@@ -127,83 +127,20 @@ const createDefaultWine = () => ({
   image: '',
 });
 
-const demoWines = [
-  {
-    id: 'demo-1',
-    name: 'Riesling Reserve',
-    producer: 'Weingut Schuster',
-    vintage: 2022,
-    alcohol: '12.5',
-    type: 'white',
-    region: 'Mosel',
-    country: 'Deutschland',
-    cellar: 'Keller 1',
-    qty: 6,
-    price: '18.90',
-    drinkFrom: '2024-01-01',
-    drinkUntil: '2028-01-01',
-    grapes: [{ name: 'Riesling', pct: 100 }],
-    notes: 'Klarer Acetat, feines Aroma von Zitrus und Pfirsich.',
-    rating: 4.8,
-    image: '',
-  },
-  {
-    id: 'demo-2',
-    name: 'Bordeaux Blend',
-    producer: 'Château du Nord',
-    vintage: 2020,
-    alcohol: '14.2',
-    type: 'red',
-    region: 'Bordeaux',
-    country: 'Frankreich',
-    cellar: 'Keller 2',
-    qty: 2,
-    price: '29.50',
-    drinkFrom: '2023-04-01',
-    drinkUntil: '2030-01-01',
-    grapes: [{ name: 'Cabernet Sauvignon', pct: 60 }, { name: 'Merlot', pct: 40 }],
-    notes: 'Dunkle Beeren, Leder und eine sanfte Tanninstruktur.',
-    rating: 4.6,
-    image: '',
-  },
-  {
-    id: 'demo-3',
-    name: 'Cuvée Brut',
-    producer: 'Maison Étoile',
-    vintage: 2021,
-    alcohol: '12.0',
-    type: 'sparkling',
-    region: 'Champagne',
-    country: 'Frankreich',
-    cellar: 'Keller 3',
-    qty: 0,
-    price: '33.00',
-    drinkFrom: '2024-06-01',
-    drinkUntil: '2027-01-01',
-    grapes: [{ name: 'Chardonnay', pct: 60 }, { name: 'Pinot Noir', pct: 40 }],
-    notes: 'Feiner Schaum und zarte Blütennoten.',
-    rating: 4.9,
-    image: '',
-  },
-];
-
 function App() {
   const [lang, setLang] = useState('de');
   const [wines, setWines] = useState(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      } catch {
-        // ignore invalid storage and fall back to demo data
-      }
+    if (!stored) {
+      return [];
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(demoWines));
-    return demoWines;
+    try {
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   });
   const [tab, setTab] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
