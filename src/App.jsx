@@ -44,7 +44,6 @@ const T = {
     archiveTitle: 'Archiv',
     edit: 'Bearbeiten',
     delete: 'Löschen',
-    archive: 'Archivieren',
     close: 'Schließen',
     cancel: 'Abbrechen',
     cellar: 'Keller',
@@ -84,7 +83,6 @@ const T = {
     archiveTitle: 'Archive',
     edit: 'Edit',
     delete: 'Delete',
-    archive: 'Archive',
     close: 'Close',
     cancel: 'Cancel',
     cellar: 'Cellar',
@@ -487,10 +485,7 @@ function App() {
 
               <div className="detail-actions">
                 {tab === 0 ? (
-                  <>
-                    <button className="primary-button" onClick={() => handleDrinkOne(selectedWine.id)}>Drink one</button>
-                    <button className="ghost-button" onClick={() => handleToggleArchive(selectedWine.id)}>{t.archive}</button>
-                  </>
+                  <button className="primary-button" onClick={() => handleDrinkOne(selectedWine.id)}>Drink one</button>
                 ) : (
                   <button className="primary-button" onClick={() => handleToggleArchive(selectedWine.id)}>Restore</button>
                 )}
