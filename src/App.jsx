@@ -486,8 +486,14 @@ function App() {
               </div>
 
               <div className="detail-actions">
-                <button className="primary-button" onClick={() => handleDrinkOne(selectedWine.id)}>{tab === 0 ? 'Drink one' : 'Restore'}</button>
-                <button className="ghost-button" onClick={() => handleToggleArchive(selectedWine.id)}>{tab === 0 ? t.archive : 'Restore'}</button>
+                {tab === 0 ? (
+                  <>
+                    <button className="primary-button" onClick={() => handleDrinkOne(selectedWine.id)}>Drink one</button>
+                    <button className="ghost-button" onClick={() => handleToggleArchive(selectedWine.id)}>{t.archive}</button>
+                  </>
+                ) : (
+                  <button className="primary-button" onClick={() => handleToggleArchive(selectedWine.id)}>Restore</button>
+                )}
               </div>
             </section>
           )}
