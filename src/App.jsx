@@ -107,6 +107,8 @@ const createId = () => {
   return `wine-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
+const createGrape = () => ({ id: createId(), name: '', pct: '' });
+
 const createDefaultWine = () => ({
   id: createId(),
   name: '',
@@ -121,7 +123,7 @@ const createDefaultWine = () => ({
   price: '24.90',
   drinkFrom: '',
   drinkUntil: '',
-  grapes: [{ name: '', pct: '' }],
+  grapes: [createGrape()],
   notes: '',
   rating: 0,
   image: '',
@@ -277,7 +279,9 @@ function App() {
     setEditingId(wine.id);
     setForm({
       ...wine,
-      grapes: wine.grapes?.length ? wine.grapes : [{ name: '', pct: '' }],
+      grapes: wine.grapes?.length
+        ? wine.grapes.map((grape) => ({ ...grape, id: grape.id || createId() }))
+        : [createGrape()],
     });
     setModalOpen(true);
   };
@@ -288,7 +292,7 @@ function App() {
 
   const updateGrape = (index, field, value) => {
     setForm((current) => {
-      const grapes = [...(current.grapes || [{ name: '', pct: '' }])];
+      const grapes = [...(current.grapes || [createGrape()])];
       grapes[index] = { ...grapes[index], [field]: value };
       return { ...current, grapes };
     });
@@ -297,7 +301,7 @@ function App() {
   const addGrapeRow = () => {
     setForm((current) => ({
       ...current,
-      grapes: [...(current.grapes || []), { name: '', pct: '' }],
+      grapes: [...(current.grapes || []), createGrape()],
     }));
   };
 
@@ -564,8 +568,8 @@ function App() {
 
               <div className="grapes-box">
                 <label>{t.grapes}</label>
-                {(form.grapes || [{ name: '', pct: '' }]).map((grape, index) => (
-                  <div className="grape-row" key={`${grape.name || 'new'}-${index}`}>
+                {(form.grapes || [createGrape()]).map((grape, index) => (
+                  <div className="grape-row" key={grape.id || index}>
                     <input value={grape.name || ''} placeholder={t.grapes} onChange={(event) => updateGrape(index, 'name', event.target.value)} />
                     <input value={grape.pct || ''} placeholder="%" onChange={(event) => updateGrape(index, 'pct', event.target.value)} />
                   </div>
