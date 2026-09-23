@@ -3,14 +3,20 @@ import { useEffect, useMemo, useState } from 'react';
 const STORAGE_KEY = 'weinkeller-wines-v2';
 
 const TYPE_META = {
-  red: { label: 'Rotwein', color: '#b83232' },
-  white: { label: 'Weißwein', color: '#b8860b' },
-  sparkling: { label: 'Schaumwein', color: '#1a8f68' },
-  rose: { label: 'Rosé', color: '#b85070' },
+  red: { color: '#b83232' },
+  white: { color: '#b8860b' },
+  sparkling: { color: '#1a8f68' },
+  rose: { color: '#b85070' },
 };
 
 const T = {
   de: {
+    wineTypes: {
+      red: 'Rotwein',
+      white: 'Weißwein',
+      sparkling: 'Schaumwein',
+      rose: 'Rosé',
+    },
     navCellar: 'Mein Keller',
     navArchive: 'Archiv',
     addWine: 'Wein hinzufügen',
@@ -50,6 +56,12 @@ const T = {
     tastingNotes: 'Verkostungsnotizen',
   },
   en: {
+    wineTypes: {
+      red: 'Red wine',
+      white: 'White wine',
+      sparkling: 'Bubbles',
+      rose: 'Rosé',
+    },
     navCellar: 'My Cellar',
     navArchive: 'Archive',
     addWine: 'Add wine',
@@ -347,9 +359,9 @@ function App() {
             <button className={typeFilter === 'all' ? 'filter-chip active' : 'filter-chip'} onClick={() => setTypeFilter('all')}>
               {t.all}
             </button>
-            {Object.entries(TYPE_META).map(([key, meta]) => (
+            {Object.entries(TYPE_META).map(([key]) => (
               <button key={key} className={typeFilter === key ? 'filter-chip active' : 'filter-chip'} onClick={() => setTypeFilter(key)}>
-                {meta.label}
+                {t.wineTypes[key]}
               </button>
             ))}
           </div>
@@ -407,7 +419,7 @@ function App() {
                   <div className="wine-meta">
                     <div className="topline">
                       <span className="chip" style={{ backgroundColor: `${TYPE_META[wine.type]?.color || '#cbd5e1'}22`, color: TYPE_META[wine.type]?.color || '#334155' }}>
-                        {TYPE_META[wine.type]?.label || wine.type}
+                        {t.wineTypes[wine.type] || wine.type}
                       </span>
                       <span className="rating">★ {Number(wine.rating || 0).toFixed(1)}</span>
                     </div>
@@ -431,7 +443,7 @@ function App() {
             <section className="detail-panel">
               <div className="detail-header">
                 <div>
-                  <p className="eyebrow">{TYPE_META[selectedWine.type]?.label}</p>
+                  <p className="eyebrow">{t.wineTypes[selectedWine.type] || selectedWine.type}</p>
                   <h2>{selectedWine.name}</h2>
                 </div>
                 <div className="actions">
@@ -526,8 +538,8 @@ function App() {
                 <label>
                   <span>{t.wineType}</span>
                   <select value={form.type || 'red'} onChange={(event) => updateForm('type', event.target.value)}>
-                    {Object.entries(TYPE_META).map(([key, meta]) => (
-                      <option key={key} value={key}>{meta.label}</option>
+                    {Object.entries(TYPE_META).map(([key]) => (
+                      <option key={key} value={key}>{t.wineTypes[key]}</option>
                     ))}
                   </select>
                 </label>
