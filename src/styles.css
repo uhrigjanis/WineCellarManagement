@@ -384,12 +384,14 @@ h1 {
 .wine-image {
   width: 62px;
   height: 62px;
+  flex: 0 0 62px;
   border-radius: 16px;
   display: grid;
   place-items: center;
   color: white;
   font-weight: 700;
   letter-spacing: 0.08em;
+  object-fit: cover;
 }
 
 .wine-meta {
@@ -467,6 +469,19 @@ h1 {
 .detail-header h2 {
   margin: 0;
   font-size: clamp(1.5rem, 2vw, 2rem);
+}
+
+.detail-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.detail-image {
+  width: 88px;
+  height: 88px;
+  border-radius: 16px;
+  object-fit: cover;
 }
 
 .actions, .detail-actions {
@@ -619,6 +634,39 @@ h1 {
   display: grid;
   grid-template-columns: minmax(0, 2fr) 110px;
   gap: 10px;
+}
+
+.picture-field {
+  display: grid;
+  gap: 8px;
+}
+
+.field-label {
+  font-weight: 600;
+  color: #334155;
+}
+
+.picture-preview {
+  width: min(240px, 100%);
+  max-height: 180px;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
+
+.picture-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.picture-field small {
+  color: var(--muted);
+}
+
+.field-error {
+  color: #991b1b;
+  margin: 0;
 }
 
 .modal-actions {
