@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { importWinesFromJson } from './wineImport.js';
 
 const STORAGE_KEY = 'weinkeller-wines-v2';
 
@@ -20,6 +21,10 @@ const T = {
     navCellar: 'Mein Keller',
     navArchive: 'Archiv',
     addWine: 'Wein hinzufügen',
+    importWine: 'JSON importieren',
+    importSuccess: 'Import erfolgreich',
+    importError: 'Import fehlgeschlagen',
+    importHelp: 'Wähle eine JSON-Datei mit Wein-Daten aus.',
     addToCellar: 'Zum Keller hinzufügen',
     saveChanges: 'Änderungen speichern',
     search: 'Wein oder Weingut …',
@@ -65,6 +70,10 @@ const T = {
     navCellar: 'My Cellar',
     navArchive: 'Archive',
     addWine: 'Add wine',
+    importWine: 'Import JSON',
+    importSuccess: 'Import successful',
+    importError: 'Import failed',
+    importHelp: 'Choose a JSON file containing wine data.',
     addToCellar: 'Add to cellar',
     saveChanges: 'Save changes',
     search: 'Wine or producer…',
@@ -162,6 +171,8 @@ function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(createDefaultWine());
+  const [importFeedback, setImportFeedback] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const t = T[lang];
 
@@ -296,6 +307,33 @@ function App() {
     setModalOpen(true);
   };
 
+  const handleImport = async (event) => {
+    const [file] = event.target.files || [];
+    event.target.value = '';
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const result = importWinesFromJson(await file.text(), wines, createId);
+      if (result.wines.length) {
+        setWines((current) => [...result.wines, ...current]);
+        setTab(0);
+      }
+      const details = [...result.errors, ...result.messages];
+      const summary = `${result.wines.length} ${result.wines.length === 1 ? t.bottle : t.bottles} imported.`;
+      setImportFeedback({
+        kind: result.errors.length && !result.wines.length ? 'error' : 'success',
+        text: result.errors.length
+          ? `${result.wines.length ? summary : t.importError}: ${details.join(' ')}`
+          : `${t.importSuccess}: ${summary}${result.messages.length ? ` ${result.messages.join(' ')}` : ''}`,
+      });
+    } catch {
+      setImportFeedback({ kind: 'error', text: `${t.importError}: ${t.importHelp}` });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
@@ -335,9 +373,20 @@ function App() {
           <button className="ghost-button" onClick={() => setLang((current) => (current === 'de' ? 'en' : 'de'))}>
             {lang === 'de' ? 'EN' : 'DE'}
           </button>
+          <label className={`ghost-button file-button${isImporting ? ' is-importing' : ''}`}>
+            <span>{isImporting ? '…' : t.importWine}</span>
+            <input type="file" accept="application/json,.json" onChange={handleImport} />
+          </label>
           <button className="primary-button" onClick={openAddModal}>{t.addWine}</button>
         </div>
       </header>
+
+      {importFeedback && (
+        <div className={`import-feedback ${importFeedback.kind}`} role="status">
+          <span>{importFeedback.text}</span>
+          <button className="feedback-close" onClick={() => setImportFeedback(null)} aria-label={t.close}>×</button>
+        </div>
+      )}
 
       <nav className="tab-nav" aria-label="Main navigation">
         <button className={tab === 0 ? 'tab-button active' : 'tab-button'} onClick={() => setTab(0)}>
