@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { importWinesFromJson } from './wineImport.js';
+import { getWineFormError } from './wineForm.js';
+import { readImageFile } from './wineImage.js';
 
 const STORAGE_KEY = 'weinkeller-wines-v2';
 
@@ -59,6 +61,12 @@ const T = {
     cancel: 'Abbrechen',
     cellar: 'Keller',
     tastingNotes: 'Verkostungsnotizen',
+    picture: 'Bild',
+    choosePicture: 'Bild auswählen',
+    removePicture: 'Bild entfernen',
+    pictureHelp: 'JPG, PNG oder WebP, maximal 5 MB.',
+    pictureError: 'Das Bild konnte nicht gespeichert werden.',
+    requiredFieldsError: 'Bitte Pflichtfelder ausfüllen.',
   },
   en: {
     wineTypes: {
@@ -108,6 +116,12 @@ const T = {
     cancel: 'Cancel',
     cellar: 'Cellar',
     tastingNotes: 'Tasting notes',
+    picture: 'Picture',
+    choosePicture: 'Choose picture',
+    removePicture: 'Remove picture',
+    pictureHelp: 'JPG, PNG, or WebP, up to 5 MB.',
+    pictureError: 'The picture could not be saved.',
+    requiredFieldsError: 'Please fill in the required fields.',
   },
 };
 
@@ -173,6 +187,8 @@ function App() {
   const [form, setForm] = useState(createDefaultWine());
   const [importFeedback, setImportFeedback] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [imageError, setImageError] = useState('');
+  const [formError, setFormError] = useState('');
 
   const t = T[lang];
 
@@ -244,7 +260,9 @@ function App() {
         }))
       : [{ name: '', pct: 0 }];
 
-    if (!cleaned.name || !cleaned.producer || !cleaned.region) {
+    const validationError = getWineFormError(cleaned);
+    if (validationError) {
+      setFormError(`${t.requiredFieldsError} ${validationError}`);
       return;
     }
 
@@ -257,6 +275,8 @@ function App() {
 
     setModalOpen(false);
     setEditingId(null);
+    setImageError('');
+    setFormError('');
     setForm(createDefaultWine());
   };
 
@@ -293,11 +313,15 @@ function App() {
   const openAddModal = () => {
     setEditingId(null);
     setForm(createDefaultWine());
+    setImageError('');
+    setFormError('');
     setModalOpen(true);
   };
 
   const openEditModal = (wine) => {
     setEditingId(wine.id);
+    setImageError('');
+    setFormError('');
     setForm({
       ...wine,
       grapes: wine.grapes?.length
@@ -305,6 +329,19 @@ function App() {
         : [createGrape()],
     });
     setModalOpen(true);
+  };
+
+  const handleImageChange = async (event) => {
+    const [file] = event.target.files || [];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      updateForm('image', await readImageFile(file));
+      setImageError('');
+    } catch (error) {
+      setImageError(error.message || t.pictureError);
+    }
   };
 
   const handleImport = async (event) => {
@@ -462,9 +499,13 @@ function App() {
             <div className="card-grid">
               {visibleList.map((wine) => (
                 <article key={wine.id} className={selectedWine?.id === wine.id ? 'wine-card selected' : 'wine-card'} onClick={() => setSelectedId(wine.id)}>
+                {wine.image ? (
+                  <img className="wine-image" src={wine.image} alt={wine.name} />
+                ) : (
                   <div className="wine-image" style={{ background: TYPE_META[wine.type]?.color || '#cbd5e1' }}>
                     {wine.name?.slice(0, 2).toUpperCase() || 'W'}
                   </div>
+                )}
                   <div className="wine-meta">
                     <div className="topline">
                       <span className="chip" style={{ backgroundColor: `${TYPE_META[wine.type]?.color || '#cbd5e1'}22`, color: TYPE_META[wine.type]?.color || '#334155' }}>
@@ -491,9 +532,12 @@ function App() {
           {selectedWine && (
             <section className="detail-panel">
               <div className="detail-header">
-                <div>
+                <div className="detail-title">
+                  {selectedWine.image && <img className="detail-image" src={selectedWine.image} alt={selectedWine.name} />}
+                  <div>
                   <p className="eyebrow">{t.wineTypes[selectedWine.type] || selectedWine.type}</p>
                   <h2>{selectedWine.name}</h2>
+                  </div>
                 </div>
                 <div className="actions">
                   <button className="ghost-button" onClick={() => openEditModal(selectedWine)}>{t.edit}</button>
@@ -567,11 +611,11 @@ function App() {
             <div className="modal-form">
               <label>
                 <span>{t.wineName}</span>
-                <input value={form.name || ''} onChange={(event) => updateForm('name', event.target.value)} />
+                <input required value={form.name || ''} onChange={(event) => updateForm('name', event.target.value)} />
               </label>
               <label>
                 <span>{t.producer}</span>
-                <input value={form.producer || ''} onChange={(event) => updateForm('producer', event.target.value)} />
+                <input required value={form.producer || ''} onChange={(event) => updateForm('producer', event.target.value)} />
               </label>
               <div className="two-column">
                 <label>
@@ -600,7 +644,7 @@ function App() {
               <div className="two-column">
                 <label>
                   <span>{t.region}</span>
-                  <input value={form.region || ''} onChange={(event) => updateForm('region', event.target.value)} />
+                  <input required value={form.region || ''} onChange={(event) => updateForm('region', event.target.value)} />
                 </label>
                 <label>
                   <span>{t.cellar}</span>
@@ -643,9 +687,28 @@ function App() {
                 <span>{t.notes}</span>
                 <textarea rows="4" value={form.notes || ''} onChange={(event) => updateForm('notes', event.target.value)} />
               </label>
+
+              <div className="picture-field">
+                <span className="field-label">{t.picture}</span>
+                {form.image && <img className="picture-preview" src={form.image} alt={form.name || t.picture} />}
+                <div className="picture-actions">
+                  <label className="ghost-button small file-button">
+                    <span>{t.choosePicture}</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} />
+                  </label>
+                  {form.image && (
+                    <button className="ghost-button small danger" type="button" onClick={() => updateForm('image', '')}>
+                      {t.removePicture}
+                    </button>
+                  )}
+                </div>
+                <small>{t.pictureHelp}</small>
+                {imageError && <p className="field-error" role="alert">{imageError}</p>}
+              </div>
             </div>
 
             <div className="modal-actions">
+              {formError && <p className="field-error" role="alert">{formError}</p>}
               <button className="ghost-button" onClick={() => setModalOpen(false)}>{t.cancel}</button>
               <button className="primary-button" onClick={handleSaveWine}>{editingId ? t.saveChanges : t.addToCellar}</button>
             </div>
