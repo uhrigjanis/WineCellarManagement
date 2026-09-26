@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { importWinesFromJson } from './wineImport.js';
 import { getWineFormError } from './wineForm.js';
 import { readImageFile } from './wineImage.js';
-
-const STORAGE_KEY = 'weinkeller-wines-v2';
+import { createAppWineRepository } from './wineStorage.js';
 
 const TYPE_META = {
   red: { color: '#b83232' },
@@ -67,6 +66,8 @@ const T = {
     pictureHelp: 'JPG, PNG oder WebP, maximal 5 MB.',
     pictureError: 'Das Bild konnte nicht gespeichert werden.',
     requiredFieldsError: 'Bitte Pflichtfelder ausfüllen.',
+    storageLoading: 'Weindaten werden geladen …',
+    storageError: 'Die Weindaten konnten nicht gespeichert oder geladen werden:',
   },
   en: {
     wineTypes: {
@@ -122,6 +123,8 @@ const T = {
     pictureHelp: 'JPG, PNG, or WebP, up to 5 MB.',
     pictureError: 'The picture could not be saved.',
     requiredFieldsError: 'Please fill in the required fields.',
+    storageLoading: 'Loading wine data…',
+    storageError: 'Wine data could not be loaded or saved:',
   },
 };
 
@@ -164,19 +167,9 @@ const createDefaultWine = () => ({
 
 function App() {
   const [lang, setLang] = useState('de');
-  const [wines, setWines] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      return [];
-    }
-
-    try {
-      const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [wines, setWines] = useState([]);
+  const [repository, setRepository] = useState(null);
+  const [storageError, setStorageError] = useState('');
   const [tab, setTab] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState('');
@@ -193,8 +186,23 @@ function App() {
   const t = T[lang];
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(wines));
-  }, [wines]);
+    let active = true;
+    createAppWineRepository()
+      .then(async (wineRepository) => {
+        const storedWines = await wineRepository.list();
+        if (active) {
+          setWines(storedWines);
+          setRepository(wineRepository);
+        }
+      })
+      .catch((error) => {
+        if (active) setStorageError(error.message || String(error));
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const cellarWines = useMemo(() => wines.filter((wine) => wine.qty > 0), [wines]);
   const archiveWines = useMemo(() => wines.filter((wine) => wine.qty <= 0), [wines]);
@@ -243,7 +251,21 @@ function App() {
     [selectedId, visibleList, wines],
   );
 
-  const handleSaveWine = () => {
+  const persistWineUpdate = async (id, changes) => {
+    if (!repository) return null;
+    try {
+      const updatedWine = await repository.update(id, changes);
+      setWines((current) => current.map((wine) => (wine.id === id ? updatedWine : wine)));
+      setStorageError('');
+      return updatedWine;
+    } catch (error) {
+      setStorageError(error.message || String(error));
+      return null;
+    }
+  };
+
+  const handleSaveWine = async () => {
+    if (!repository) return;
     const cleaned = { ...form };
     cleaned.name = cleaned.name.trim();
     cleaned.producer = cleaned.producer.trim();
@@ -267,9 +289,16 @@ function App() {
     }
 
     if (editingId) {
-      setWines((current) => current.map((wine) => (wine.id === editingId ? { ...wine, ...cleaned } : wine)));
+      if (!await persistWineUpdate(editingId, cleaned)) return;
     } else {
-      setWines((current) => [{ ...cleaned, id: createId() }, ...current]);
+      try {
+        const createdWine = await repository.create({ ...cleaned, id: createId() });
+        setWines((current) => [createdWine, ...current]);
+        setStorageError('');
+      } catch (error) {
+        setStorageError(error.message || String(error));
+        return;
+      }
       setTab(0);
     }
 
@@ -280,17 +309,24 @@ function App() {
     setForm(createDefaultWine());
   };
 
-  const handleDeleteWine = (id) => {
-    setWines((current) => current.filter((wine) => wine.id !== id));
+  const handleDeleteWine = async (id) => {
+    if (!repository) return;
+    try {
+      await repository.delete(id);
+      setWines((current) => current.filter((wine) => wine.id !== id));
+      setStorageError('');
+    } catch (error) {
+      setStorageError(error.message || String(error));
+      return;
+    }
     if (selectedId === id) setSelectedId(null);
   };
 
-  const handleToggleArchive = (id) => {
-    setWines((current) => current.map((wine) => {
-      if (wine.id !== id) return wine;
-      const isArchived = Number(wine.qty || 0) <= 0;
-      return { ...wine, qty: isArchived ? 1 : 0 };
-    }));
+  const handleToggleArchive = async (id) => {
+    const wine = wines.find((item) => item.id === id);
+    if (!wine) return;
+    const isArchived = Number(wine.qty || 0) <= 0;
+    if (!await persistWineUpdate(id, { qty: isArchived ? 1 : 0 })) return;
 
     if (tab === 1) {
       setTab(0);
@@ -298,16 +334,15 @@ function App() {
     }
   };
 
-  const handleDrinkOne = (id) => {
-    setWines((current) => current.map((wine) => {
-      if (wine.id !== id) return wine;
-      const nextQty = Math.max(0, Number(wine.qty || 0) - 1);
-      return { ...wine, qty: nextQty };
-    }));
+  const handleDrinkOne = async (id) => {
+    const wine = wines.find((item) => item.id === id);
+    if (!wine) return;
+    const nextQty = Math.max(0, Number(wine.qty || 0) - 1);
+    await persistWineUpdate(id, { qty: nextQty });
   };
 
-  const handleSetRating = (id, value) => {
-    setWines((current) => current.map((wine) => (wine.id === id ? { ...wine, rating: value } : wine)));
+  const handleSetRating = async (id, value) => {
+    await persistWineUpdate(id, { rating: value });
   };
 
   const openAddModal = () => {
@@ -349,11 +384,14 @@ function App() {
     event.target.value = '';
     if (!file) return;
 
+    if (!repository) return;
     setIsImporting(true);
     try {
       const result = importWinesFromJson(await file.text(), wines, createId);
       if (result.wines.length) {
-        setWines((current) => [...result.wines, ...current]);
+        const importedWines = await repository.createMany(result.wines);
+        setWines((current) => [...importedWines, ...current]);
+        setStorageError('');
         setTab(0);
       }
       const details = [...result.errors, ...result.messages];
@@ -364,7 +402,8 @@ function App() {
           ? `${result.wines.length ? summary : t.importError}: ${details.join(' ')}`
           : `${t.importSuccess}: ${summary}${result.messages.length ? ` ${result.messages.join(' ')}` : ''}`,
       });
-    } catch {
+    } catch (error) {
+      setStorageError(error.message || String(error));
       setImportFeedback({ kind: 'error', text: `${t.importError}: ${t.importHelp}` });
     } finally {
       setIsImporting(false);
@@ -412,11 +451,18 @@ function App() {
           </button>
           <label className={`ghost-button file-button${isImporting ? ' is-importing' : ''}`}>
             <span>{isImporting ? '…' : t.importWine}</span>
-            <input type="file" accept="application/json,.json" onChange={handleImport} />
+            <input type="file" accept="application/json,.json" onChange={handleImport} disabled={!repository || isImporting} />
           </label>
-          <button className="primary-button" onClick={openAddModal}>{t.addWine}</button>
+          <button className="primary-button" onClick={openAddModal} disabled={!repository}>{t.addWine}</button>
         </div>
       </header>
+
+      {!repository && !storageError && <div role="status">{t.storageLoading}</div>}
+      {storageError && (
+        <div className="import-feedback error" role="alert">
+          {t.storageError} {storageError}
+        </div>
+      )}
 
       {importFeedback && (
         <div className={`import-feedback ${importFeedback.kind}`} role="status">
