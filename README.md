@@ -33,7 +33,7 @@ An import never replaces existing cellar data. Wines matching an existing `name`
 
 ## Scanning wine labels
 
-On iOS and Android, use **Scan wine label** in the add/edit form to capture a label with the device camera. Tesseract.js recognizes English and German text in the browser; the label image is processed on-device and is not uploaded. The OCR worker and language data may need to download on first use, so scanning requires an internet connection. Desktop users can continue to add a picture separately. Extracted details are suggestions: review and correct them before saving. Fields the scanner cannot identify confidently are left blank.
+On iOS and Android mobile browsers, use **Scan wine label** in the add/edit form to capture or choose a label image. OpenCV.js detects the label boundary, corrects perspective, and applies local contrast enhancement before Tesseract.js performs OCR with English, German, and French language data. HEIC photos are converted in the browser when needed. Label images are processed on-device and never uploaded, though OCR engine and language files may download the first time. The scanner is hidden on desktop. Extracted details are editable suggestions; uncertain fields are left blank. Existing picture upload remains separate.
 
 ## Notes on migration strategy
 

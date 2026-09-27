@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { extractWineSuggestions, isMobileDevice, scanWineLabel } from './wineScan.js';
+import {
+  extractWineSuggestions,
+  isMobileDevice,
+  orderQuadrilateral,
+  scanWineLabel,
+  validateScanImageFile,
+} from './wineScan.js';
 
 test('allows scanning on iOS and Android user agents but not desktop', () => {
   assert.equal(isMobileDevice('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)'), true);
@@ -10,7 +16,29 @@ test('allows scanning on iOS and Android user agents but not desktop', () => {
   assert.equal(isMobileDevice('Mozilla/5.0 (Windows NT 10.0; Win64; x64)'), false);
 });
 
-test('extracts only explicitly labeled wine details from English and German label text', () => {
+test('accepts supported scanner images, including HEIC, and reports invalid files', () => {
+  assert.equal(validateScanImageFile({ name: 'label.jpg', type: 'image/jpeg', size: 1024 }).valid, true);
+  assert.equal(validateScanImageFile({ name: 'label.HEIC', type: '', size: 1024 }).valid, true);
+  assert.match(validateScanImageFile({ name: 'label.pdf', type: 'application/pdf', size: 1024 }).error, /HEIC/i);
+  assert.match(validateScanImageFile({ name: 'label.jpg', type: 'image/jpeg', size: 21 * 1024 * 1024 }).error, /20 MB/i);
+});
+
+test('orders detected label corners clockwise from the top-left', () => {
+  assert.deepEqual(orderQuadrilateral([
+    { x: 80, y: 100 },
+    { x: 10, y: 10 },
+    { x: 100, y: 20 },
+    { x: 20, y: 110 },
+  ]), [
+    { x: 10, y: 10 },
+    { x: 100, y: 20 },
+    { x: 80, y: 100 },
+    { x: 20, y: 110 },
+  ]);
+  assert.throws(() => orderQuadrilateral([]), /four corner points/i);
+});
+
+test('extracts explicitly labeled wine details from English, German, and French OCR', () => {
   assert.deepEqual(extractWineSuggestions([
     'Wine: Pinot Noir Reserve',
     'Producer: Sonnenhof Estate',
@@ -46,12 +74,70 @@ test('extracts only explicitly labeled wine details from English and German labe
     region: 'Mosel',
     country: 'Deutschland',
   });
+
+  assert.deepEqual(extractWineSuggestions([
+    'Nom: Champagne Cuvée Réserve',
+    'Producteur: Maison Exemple',
+    'Millésime: 2018',
+    'Appellation: Champagne',
+    'Type: Brut Nature',
+  ].join('\n')), {
+    name: 'Champagne Cuvée Réserve',
+    producer: 'Maison Exemple',
+    vintage: '2018',
+    alcohol: '',
+    type: 'sparkling',
+    region: 'Champagne',
+    country: '',
+  });
 });
 
-test('recognizes the remaining supported wine styles', () => {
-  assert.equal(extractWineSuggestions('Type: Rosé').type, 'rose');
-  assert.equal(extractWineSuggestions('Type: Sparkling wine').type, 'sparkling');
-  assert.equal(extractWineSuggestions('Weinart: Schaumwein').type, 'sparkling');
+test('suggests fields from a conventional Champagne label layout', () => {
+  assert.deepEqual(extractWineSuggestions([
+    'C CHAMPAGNE',
+    'Pur Meunier',
+    'Brut Nature 2018',
+    'CAILLEZ LEMAIRE',
+    'FAMILLE VIGNERONNE A DAMERY',
+  ].join('\n')), {
+    name: 'Pur Meunier Brut Nature',
+    producer: 'CAILLEZ LEMAIRE',
+    vintage: '2018',
+    alcohol: '',
+    type: 'sparkling',
+    region: 'Champagne',
+    country: '',
+  });
+});
+
+test('recognizes the producer beside a Champagne family-vigneron line', () => {
+  const suggestions = extractWineSuggestions([
+    'C CHAMPAGNE',
+    'B But Motine COÖ',
+    'CAILLEZ LEMAIRE',
+    'FAMILLE VIGNERONNE A DAMERY',
+  ].join('\n'));
+  assert.equal(suggestions.producer, 'CAILLEZ LEMAIRE');
+  assert.equal(suggestions.region, 'Champagne');
+  assert.equal(suggestions.type, 'sparkling');
+});
+
+test('extracts only readable details from OCR text tested on the supplied Champagne label', () => {
+  assert.deepEqual(extractWineSuggestions([
+    '«',
+    'SC CHAMPAGNE',
+    'B But Motine COÖ',
+    'CAILLEZ LEMAIRE',
+    'B FAMILLE VIGNERONNE AD',
+  ].join('\n')), {
+    name: '',
+    producer: 'CAILLEZ LEMAIRE',
+    vintage: '',
+    alcohol: '',
+    type: 'sparkling',
+    region: 'Champagne',
+    country: '',
+  });
 });
 
 test('leaves uncertain fields blank instead of guessing from unlabeled text', () => {
@@ -66,28 +152,39 @@ test('leaves uncertain fields blank instead of guessing from unlabeled text', ()
   });
 });
 
-test('runs OCR through a disposable worker and returns editable suggestions', async () => {
-  const file = { name: 'label.jpg', type: 'image/jpeg', size: 1024 };
+test('recognizes processed label orientations and returns the strongest OCR result', async () => {
+  const image = { name: 'label.jpg', type: 'image/jpeg', size: 1024 };
+  const recognizedImages = [];
   let terminated = false;
-  const result = await scanWineLabel(file, {
+  const result = await scanWineLabel(image, {
+    preprocess: async (file) => {
+      assert.equal(file, image);
+      return { images: ['enhanced-label', 'rotated-label'], labelDetected: true };
+    },
     workerFactory: async () => ({
-      recognize: async (image) => {
-        assert.equal(image, file);
-        return { data: { text: 'Vintage: 2018' } };
+      recognize: async (processedImage) => {
+        recognizedImages.push(processedImage);
+        return processedImage === 'enhanced-label'
+          ? { data: { text: 'Wine: Test', confidence: 45 } }
+          : { data: { text: 'Vintage: 2018', confidence: 90 } };
       },
+      setParameters: async () => {},
       terminate: async () => { terminated = true; },
     }),
   });
 
+  assert.deepEqual(recognizedImages, ['enhanced-label', 'rotated-label']);
   assert.equal(result.text, 'Vintage: 2018');
   assert.equal(result.suggestions.vintage, '2018');
+  assert.equal(result.labelDetected, true);
   assert.equal(terminated, true);
 });
 
-test('terminates its OCR worker and reports OCR failures', async () => {
+test('terminates its OCR worker and propagates OCR failures', async () => {
   let terminated = false;
   await assert.rejects(
     scanWineLabel({ name: 'label.jpg', type: 'image/jpeg', size: 1024 }, {
+      preprocess: async () => ({ images: ['label'], labelDetected: false }),
       workerFactory: async () => ({
         recognize: async () => { throw new Error('OCR failed'); },
         terminate: async () => { terminated = true; },
@@ -98,16 +195,16 @@ test('terminates its OCR worker and reports OCR failures', async () => {
   assert.equal(terminated, true);
 });
 
-test('rejects unsupported scan files before starting OCR', async () => {
-  let workerStarted = false;
+test('rejects unsupported scan files before preprocessing', async () => {
+  let preprocessed = false;
   await assert.rejects(
     scanWineLabel({ name: 'label.pdf', type: 'application/pdf', size: 1024 }, {
-      workerFactory: async () => {
-        workerStarted = true;
-        return {};
+      preprocess: async () => {
+        preprocessed = true;
+        return { images: [], labelDetected: false };
       },
     }),
-    /JPG, PNG, or WebP/i,
+    /HEIC/i,
   );
-  assert.equal(workerStarted, false);
+  assert.equal(preprocessed, false);
 });

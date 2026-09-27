@@ -70,8 +70,9 @@ const T = {
     requiredFieldsError: 'Bitte Pflichtfelder ausfüllen.',
     scanLabel: 'Etikett scannen',
     scanBusy: 'Etikett wird gelesen …',
-    scanHelp: 'Die Texterkennung läuft auf diesem Gerät. Erkannte Angaben bitte prüfen und korrigieren.',
+    scanHelp: 'Das Etikett wird auf diesem Gerät zugeschnitten und gelesen. Erkannte Angaben bitte prüfen und korrigieren.',
     scanSuccess: 'Angaben erkannt. Bitte Vorschläge prüfen und korrigieren.',
+    scanCropFallback: 'Etikett nicht automatisch erkannt; das gesamte Bild wurde gelesen. Bitte Vorschläge prüfen.',
     scanNoFields: 'Kein eindeutiges Feld erkannt. Bitte Etikett erneut fotografieren oder Angaben manuell eingeben.',
     scanError: 'Das Etikett konnte nicht gelesen werden.',
   },
@@ -131,8 +132,9 @@ const T = {
     requiredFieldsError: 'Please fill in the required fields.',
     scanLabel: 'Scan wine label',
     scanBusy: 'Reading label …',
-    scanHelp: 'Text recognition runs on this device. Review and correct any detected suggestions.',
+    scanHelp: 'The label is cropped and read on this device. Review and correct any detected suggestions.',
     scanSuccess: 'Details detected. Review and correct the suggestions.',
+    scanCropFallback: 'Could not detect the label; scanned the full image instead. Review the suggestions.',
     scanNoFields: 'No clear fields detected. Try another photo or enter the details manually.',
     scanError: 'The label could not be read.',
   },
@@ -331,6 +333,7 @@ function App() {
     setForm(createDefaultWine());
     setImageError('');
     setFormError('');
+    setScanFeedback(null);
     setModalOpen(true);
   };
 
@@ -338,6 +341,7 @@ function App() {
     setEditingId(wine.id);
     setImageError('');
     setFormError('');
+    setScanFeedback(null);
     setForm({
       ...wine,
       grapes: wine.grapes?.length
@@ -363,7 +367,9 @@ function App() {
   const handleScanLabel = async (event) => {
     const [file] = event.target.files || [];
     event.target.value = '';
-    if (!file || !canScanLabels) return;
+    if (!file) return;
+
+    if (!canScanLabels) return;
 
     setIsScanning(true);
     setScanFeedback(null);
@@ -374,7 +380,10 @@ function App() {
       );
       if (Object.keys(suggestions).length) {
         setForm((current) => ({ ...current, ...suggestions }));
-        setScanFeedback({ kind: 'success', text: t.scanSuccess });
+        setScanFeedback({
+          kind: 'success',
+          text: result.labelDetected ? t.scanSuccess : t.scanCropFallback,
+        });
       } else {
         setScanFeedback({ kind: 'error', text: t.scanNoFields });
       }
@@ -735,11 +744,11 @@ function App() {
               {canScanLabels && (
                 <div className="scan-field">
                   <span className="field-label">{t.scanLabel}</span>
-                  <label className={`ghost-button small file-button${isScanning ? ' is-importing' : ''}`}>
+                  <label className="ghost-button small file-button scan-file-label">
                     <span>{isScanning ? t.scanBusy : t.scanLabel}</span>
                     <input
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept="image/*,.heic,.heif"
                       capture="environment"
                       aria-label={t.scanLabel}
                       disabled={isScanning}
