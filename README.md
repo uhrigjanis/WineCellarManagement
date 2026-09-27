@@ -31,6 +31,10 @@ Use **Import JSON** in the toolbar to select a JSON file from a desktop or mobil
 
 An import never replaces existing cellar data. Wines matching an existing `name`, `producer`, and `vintage` are skipped as duplicates, and invalid entries are reported without blocking valid entries in the same file. See [`examples/wines.json`](examples/wines.json) for a ready-to-import file.
 
+## Scanning wine labels
+
+On iOS and Android, use **Scan wine label** in the add/edit form to capture a label with the device camera. Tesseract.js recognizes English and German text in the browser; the label image is processed on-device and is not uploaded. The OCR worker and language data may need to download on first use, so scanning requires an internet connection. Desktop users can continue to add a picture separately. Extracted details are suggestions: review and correct them before saving. Fields the scanner cannot identify confidently are left blank.
+
 ## Notes on migration strategy
 
 - The app stores cellar data in `localStorage` under the existing `weinkeller-wines-v2` key, preserving compatibility with the legacy app data model.
