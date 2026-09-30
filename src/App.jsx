@@ -4,6 +4,7 @@ import { importWinesFromJson } from './wineImport.js';
 import { downloadWineExport, selectWinesForExport } from './wineExport.js';
 import { getWineFormError } from './wineForm.js';
 import { readImageFile } from './wineImage.js';
+import { getCountryFlagEmoji } from './countryFlag.js';
 
 const STORAGE_KEY = 'weinkeller-wines-v2';
 
@@ -233,6 +234,17 @@ const createDefaultWine = () => ({
   rating: 0,
   image: '',
 });
+
+function CountryFlag({ country }) {
+  const flag = getCountryFlagEmoji(country);
+  if (!flag) return null;
+
+  return (
+    <span className="country-flag" role="img" aria-label={`${country} flag`} title={country}>
+      {flag}
+    </span>
+  );
+}
 
 function App() {
   const [lang, setLang] = useState('de');
@@ -700,6 +712,10 @@ function App() {
                     </div>
                     <h3>{wine.name}</h3>
                     <p>{wine.producer}</p>
+                    <p className="wine-country">
+                      <CountryFlag country={wine.country} />
+                      {wine.country || '-'}
+                    </p>
                     <div className="facts">
                       <span>{wine.vintage}</span>
                       <span>{wine.qty} {wine.qty === 1 ? t.bottle : t.bottles}</span>
@@ -738,6 +754,13 @@ function App() {
                 <div className="detail-item">
                   <span>{t.region}</span>
                   <strong>{selectedWine.region || '-'}</strong>
+                </div>
+                <div className="detail-item">
+                  <span>{t.country}</span>
+                  <strong className="country-origin">
+                    <CountryFlag country={selectedWine.country} />
+                    {selectedWine.country || '-'}
+                  </strong>
                 </div>
                 <div className="detail-item">
                   <span>{t.vintage}</span>
@@ -952,7 +975,10 @@ function App() {
                 </label>
                 <label>
                   <span>{t.country}</span>
-                  <input value={form.country || ''} onChange={(event) => updateForm('country', event.target.value)} />
+                  <div className="country-input-wrap">
+                    <CountryFlag country={form.country} />
+                    <input value={form.country || ''} onChange={(event) => updateForm('country', event.target.value)} />
+                  </div>
                 </label>
               </div>
               <div className="two-column">
