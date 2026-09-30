@@ -33,6 +33,30 @@ Use **Import CSV** to preview a spreadsheet export before importing it. Comma-, 
 
 An import never replaces existing cellar data. Wines matching an existing `name`, `producer`, and `vintage` are skipped as duplicates, and invalid entries are reported without blocking valid entries in the same file. See [`examples/wines.json`](examples/wines.json) for JSON and [`examples/cellar.csv`](examples/cellar.csv) for CSV examples.
 
+## Exporting wine data
+
+Use the export controls to download all wines, the wines currently visible after search and type filtering, or the wines checked for export. JSON exports preserve each complete wine record, including grapes, notes, images, and other stored metadata; JavaScript date values are serialized as ISO 8601 strings. The JSON shape is described by [`examples/wine-export-schema.json`](examples/wine-export-schema.json). For example:
+
+```json
+[
+  {
+    "id": "wine-1",
+    "name": "Château Margaux",
+    "producer": "Château Margaux",
+    "region": "Bordeaux",
+    "country": "France",
+    "type": "red",
+    "qty": 12,
+    "price": 89.99,
+    "vintage": 2015,
+    "rating": 4.8,
+    "grapes": [{ "name": "Cabernet Sauvignon", "pct": 75 }]
+  }
+]
+```
+
+CSV exports use the import-compatible columns `Winery`, `Wine name`, `Vintage`, `Region`, `Country`, `Wine type`, and `User cellar count`, in that order. Values with commas, quotes, or line breaks are escaped according to CSV rules, and Unicode text is retained. CSV contains these mapped fields; use JSON when you need the full record and its additional metadata. Both formats download as `winecellar-YYYY-MM-DD` files.
+
 ## Notes on migration strategy
 
 - The app stores cellar data in `localStorage` under the existing `weinkeller-wines-v2` key, preserving compatibility with the legacy app data model.

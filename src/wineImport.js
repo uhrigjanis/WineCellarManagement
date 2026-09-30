@@ -1,4 +1,4 @@
-const REQUIRED_FIELDS = ['name', 'producer', 'region', 'country', 'style', 'qty', 'price', 'vintage', 'rating', 'grapes'];
+const REQUIRED_FIELDS = ['name', 'producer', 'region', 'country', 'qty', 'price', 'vintage', 'rating', 'grapes'];
 const WINE_STYLES = new Set(['red', 'white', 'sparkling', 'rose']);
 const isNumber = (value) => typeof value === 'number' && Number.isFinite(value);
 
@@ -14,6 +14,10 @@ const validateWine = (wine, index) => {
   }
 
   const missing = REQUIRED_FIELDS.filter((field) => wine[field] === undefined || wine[field] === null || wine[field] === '');
+  if ((wine.style === undefined || wine.style === null || wine.style === '')
+    && (wine.type === undefined || wine.type === null || wine.type === '')) {
+    missing.push('style');
+  }
   if (missing.length) {
     return `Wine ${index + 1} is missing required field(s): ${missing.join(', ')}.`;
   }
@@ -22,7 +26,7 @@ const validateWine = (wine, index) => {
     return `Wine ${index + 1} must have text values for name, producer, region, and country.`;
   }
 
-  if (!WINE_STYLES.has(wine.style)) {
+  if (!WINE_STYLES.has(wine.type ?? wine.style)) {
     return `Wine ${index + 1} has an invalid style. Use red, white, sparkling, or rose.`;
   }
 
@@ -33,8 +37,8 @@ const validateWine = (wine, index) => {
     return `Wine ${index + 1} has invalid numeric values for qty, price, vintage, or rating.`;
   }
 
-  if (!Array.isArray(wine.grapes) || wine.grapes.length === 0
-    || wine.grapes.some((grape) => !grape || typeof grape.name !== 'string' || !grape.name.trim()
+  if (!Array.isArray(wine.grapes)
+    || wine.grapes.some((grape) => !grape || typeof grape.name !== 'string'
       || !isNumber(grape.pct) || grape.pct < 0 || grape.pct > 100)) {
     return `Wine ${index + 1} must contain grapes with a name and pct between 0 and 100.`;
   }
@@ -73,24 +77,26 @@ export function importWinesFromJson(json, existingWines = [], createId = () => c
     }
 
     knownKeys.add(key);
+    const { style, ...metadata } = wine;
     wines.push({
+      ...metadata,
       id: createId(),
       name: wine.name.trim(),
       producer: wine.producer.trim(),
       region: wine.region.trim(),
       country: wine.country.trim(),
-      type: wine.style,
+      type: wine.type ?? style,
       qty: wine.qty,
       price: wine.price,
       vintage: wine.vintage,
       rating: wine.rating,
-      grapes: wine.grapes.map((grape) => ({ name: grape.name.trim(), pct: grape.pct })),
-      alcohol: '',
-      cellar: 'Keller 1',
-      drinkFrom: '',
-      drinkUntil: '',
-      notes: '',
-      image: '',
+      grapes: wine.grapes.map((grape) => ({ ...grape, name: grape.name.trim() })),
+      alcohol: wine.alcohol ?? '',
+      cellar: wine.cellar ?? 'Keller 1',
+      drinkFrom: wine.drinkFrom ?? '',
+      drinkUntil: wine.drinkUntil ?? '',
+      notes: wine.notes ?? '',
+      image: wine.image ?? '',
     });
   });
 
