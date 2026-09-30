@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { decodeCsvFile, detectCsvDelimiter, importWinesFromCsv, suggestCsvMapping } from './csvImport.js';
 import { importWinesFromJson } from './wineImport.js';
 import { downloadWineExport, selectWinesForExport } from './wineExport.js';
 import { getWineFormError } from './wineForm.js';
 import { readImageFile } from './wineImage.js';
 import { getCountryFlagEmoji } from './countryFlag.js';
+import { transitionImportExportMenu } from './importExportMenu.js';
 
 const STORAGE_KEY = 'weinkeller-wines-v2';
 
@@ -26,8 +27,10 @@ const T = {
     navCellar: 'Mein Keller',
     navArchive: 'Archiv',
     addWine: 'Wein hinzufügen',
-    importWine: 'JSON importieren',
-    importCsv: 'CSV importieren',
+    importExport: 'Import / Export',
+    importAction: 'Importieren',
+    exportAction: 'Exportieren',
+    backToImportExport: 'Zurück',
     exportWines: 'Exportieren',
     exportScope: 'Umfang',
     exportAll: 'Alle Weine',
@@ -116,8 +119,10 @@ const T = {
     navCellar: 'My Cellar',
     navArchive: 'Archive',
     addWine: 'Add wine',
-    importWine: 'Import JSON',
-    importCsv: 'Import CSV',
+    importExport: 'Import / Export',
+    importAction: 'Import',
+    exportAction: 'Export',
+    backToImportExport: 'Back',
     exportWines: 'Export',
     exportScope: 'Scope',
     exportAll: 'All wines',
@@ -266,6 +271,12 @@ function App() {
   const [selectedExportIds, setSelectedExportIds] = useState([]);
   const [exportScope, setExportScope] = useState('all');
   const [exportFormat, setExportFormat] = useState('json');
+  const [importExportMenu, setImportExportMenu] = useState('closed');
+  const importExportRef = useRef(null);
+  const importExportTriggerRef = useRef(null);
+  const importActionRef = useRef(null);
+  const exportScopeRef = useRef(null);
+  const importFileInputRef = useRef(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [sort, setSort] = useState({ key: 'rating', dir: 'desc' });
@@ -279,6 +290,34 @@ function App() {
   const [formError, setFormError] = useState('');
 
   const t = T[lang];
+
+  useEffect(() => {
+    if (importExportMenu === 'main') importActionRef.current?.focus();
+    if (importExportMenu === 'export') exportScopeRef.current?.focus();
+  }, [importExportMenu]);
+
+  useEffect(() => {
+    if (importExportMenu === 'closed') return undefined;
+
+    const handlePointerDown = (event) => {
+      if (!importExportRef.current?.contains(event.target)) {
+        setImportExportMenu((current) => transitionImportExportMenu(current, { type: 'outside-click' }));
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setImportExportMenu((current) => transitionImportExportMenu(current, { type: 'escape' }));
+        importExportTriggerRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [importExportMenu]);
   const csvPreview = useMemo(() => (
     csvDraft
       ? importWinesFromCsv(csvDraft.text, wines, () => 'csv-preview', {
@@ -510,6 +549,17 @@ function App() {
     }
   };
 
+  const handleImportSelection = (event) => {
+    const [file] = event.target.files || [];
+    if (!file) return;
+
+    if (file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv')) {
+      handleCsvSelect(event);
+    } else {
+      handleImport(event);
+    }
+  };
+
   const confirmCsvImport = () => {
     if (!csvDraft || !csvPreview) return;
     const result = importWinesFromCsv(csvDraft.text, wines, createId, {
@@ -571,37 +621,91 @@ function App() {
           <button className="ghost-button" onClick={() => setLang((current) => (current === 'de' ? 'en' : 'de'))}>
             {lang === 'de' ? 'EN' : 'DE'}
           </button>
-          <label className={`ghost-button file-button${isImporting ? ' is-importing' : ''}`}>
-            <span>{isImporting ? '…' : t.importWine}</span>
-            <input type="file" accept="application/json,.json" onChange={handleImport} />
-          </label>
-          <label className={`ghost-button file-button${isImporting ? ' is-importing' : ''}`}>
-            <span>{isImporting ? '…' : t.importCsv}</span>
-            <input type="file" accept="text/csv,.csv" onChange={handleCsvSelect} disabled={isImporting} />
-          </label>
-          <div className="export-controls">
-            <label>
-              <span>{t.exportScope}</span>
-              <select value={exportScope} onChange={(event) => setExportScope(event.target.value)}>
-                <option value="all">{t.exportAll}</option>
-                <option value="visible">{t.exportVisible}</option>
-                <option value="selected">{t.exportSelected}</option>
-              </select>
-            </label>
-            <label>
-              <span>{t.exportFormat}</span>
-              <select value={exportFormat} onChange={(event) => setExportFormat(event.target.value)}>
-                <option value="json">{t.exportJson}</option>
-                <option value="csv">{t.exportCsv}</option>
-              </select>
-            </label>
+          <div className="import-export" ref={importExportRef}>
             <button
               className="ghost-button"
-              onClick={handleExport}
-              disabled={exportScope === 'selected' && !selectedExportIds.length}
+              type="button"
+              ref={importExportTriggerRef}
+              aria-expanded={importExportMenu !== 'closed'}
+              aria-controls="import-export-panel"
+              onClick={() => setImportExportMenu((current) => transitionImportExportMenu(current, { type: 'toggle-main' }))}
             >
-              {t.exportWines}
+              {t.importExport}
             </button>
+            {importExportMenu !== 'closed' && (
+              <div className="import-export-panel" id="import-export-panel">
+                {importExportMenu === 'main' ? (
+                  <div className="import-export-actions" aria-label={t.importExport}>
+                    <button
+                      className="ghost-button"
+                      type="button"
+                      ref={importActionRef}
+                      disabled={isImporting}
+                      onClick={() => {
+                        setImportExportMenu('closed');
+                        importFileInputRef.current?.click();
+                      }}
+                    >
+                      {isImporting ? '…' : t.importAction}
+                    </button>
+                    <input
+                      className="visually-hidden"
+                      ref={importFileInputRef}
+                      type="file"
+                      accept="application/json,.json,text/csv,.csv"
+                      onChange={handleImportSelection}
+                      disabled={isImporting}
+                      aria-hidden="true"
+                      tabIndex={-1}
+                    />
+                    <button
+                      className="ghost-button"
+                      type="button"
+                      onClick={() => setImportExportMenu((current) => transitionImportExportMenu(current, { type: 'open-export' }))}
+                    >
+                      {t.exportAction}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="export-menu">
+                    <button
+                      className="export-menu-back"
+                      type="button"
+                      onClick={() => setImportExportMenu((current) => transitionImportExportMenu(current, { type: 'back-to-main' }))}
+                    >
+                      ← {t.backToImportExport}
+                    </button>
+                    <label>
+                      <span>{t.exportScope}</span>
+                      <select ref={exportScopeRef} value={exportScope} onChange={(event) => setExportScope(event.target.value)}>
+                        <option value="all">{t.exportAll}</option>
+                        <option value="visible">{t.exportVisible}</option>
+                        <option value="selected">{t.exportSelected}</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>{t.exportFormat}</span>
+                      <select value={exportFormat} onChange={(event) => setExportFormat(event.target.value)}>
+                        <option value="json">{t.exportJson}</option>
+                        <option value="csv">{t.exportCsv}</option>
+                      </select>
+                    </label>
+                    <button
+                      className="primary-button"
+                      type="button"
+                      onClick={() => {
+                        handleExport();
+                        setImportExportMenu('closed');
+                        importExportTriggerRef.current?.focus();
+                      }}
+                      disabled={exportScope === 'selected' && !selectedExportIds.length}
+                    >
+                      {t.exportWines}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <button className="primary-button" onClick={openAddModal}>{t.addWine}</button>
         </div>
