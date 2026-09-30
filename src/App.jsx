@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { decodeCsvFile, detectCsvDelimiter, importWinesFromCsv, suggestCsvMapping } from './csvImport.js';
 import { importWinesFromJson } from './wineImport.js';
 import { getWineFormError } from './wineForm.js';
 import { readImageFile } from './wineImage.js';
@@ -24,9 +25,35 @@ const T = {
     navArchive: 'Archiv',
     addWine: 'Wein hinzufügen',
     importWine: 'JSON importieren',
+    importCsv: 'CSV importieren',
     importSuccess: 'Import erfolgreich',
     importError: 'Import fehlgeschlagen',
     importHelp: 'Wähle eine JSON-Datei mit Wein-Daten aus.',
+    csvImportTitle: 'CSV-Import prüfen',
+    csvDelimiter: 'Trennzeichen',
+    csvColumnMapping: 'Spalten zuordnen',
+    csvPreview: 'Vorschau',
+    csvConfirm: 'Gültige Weine importieren',
+    csvReady: 'Bereit',
+    csvDuplicate: 'Duplikat',
+    csvStatus: 'Prüfung',
+    csvNoRows: 'Keine gültigen Zeilen zur Vorschau.',
+    csvFields: {
+      producer: 'Weingut / Produzent',
+      name: 'Weinname',
+      vintage: 'Jahrgang',
+      region: 'Anbaugebiet',
+      country: 'Land',
+      type: 'Weinart',
+      qty: 'Kellerbestand',
+      price: 'Preis',
+      rating: 'Bewertung',
+      alcohol: 'Alkohol (%)',
+      notes: 'Notizen',
+      grapes: 'Rebsorten',
+      drinkFrom: 'Bereit ab',
+      drinkUntil: 'Trinken bis',
+    },
     addToCellar: 'Zum Keller hinzufügen',
     saveChanges: 'Änderungen speichern',
     search: 'Wein oder Weingut …',
@@ -79,9 +106,35 @@ const T = {
     navArchive: 'Archive',
     addWine: 'Add wine',
     importWine: 'Import JSON',
+    importCsv: 'Import CSV',
     importSuccess: 'Import successful',
     importError: 'Import failed',
     importHelp: 'Choose a JSON file containing wine data.',
+    csvImportTitle: 'Review CSV import',
+    csvDelimiter: 'Delimiter',
+    csvColumnMapping: 'Map columns',
+    csvPreview: 'Preview',
+    csvConfirm: 'Import valid wines',
+    csvReady: 'Ready',
+    csvDuplicate: 'Duplicate',
+    csvStatus: 'Validation',
+    csvNoRows: 'No rows available to preview.',
+    csvFields: {
+      producer: 'Winery / producer',
+      name: 'Wine name',
+      vintage: 'Vintage',
+      region: 'Region',
+      country: 'Country',
+      type: 'Wine type',
+      qty: 'Cellar count',
+      price: 'Price',
+      rating: 'Rating',
+      alcohol: 'Alcohol (%)',
+      notes: 'Notes',
+      grapes: 'Grapes',
+      drinkFrom: 'Drink from',
+      drinkUntil: 'Drink until',
+    },
     addToCellar: 'Add to cellar',
     saveChanges: 'Save changes',
     search: 'Wine or producer…',
@@ -187,10 +240,20 @@ function App() {
   const [form, setForm] = useState(createDefaultWine());
   const [importFeedback, setImportFeedback] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [csvDraft, setCsvDraft] = useState(null);
   const [imageError, setImageError] = useState('');
   const [formError, setFormError] = useState('');
 
   const t = T[lang];
+  const csvPreview = useMemo(() => (
+    csvDraft
+      ? importWinesFromCsv(csvDraft.text, wines, () => 'csv-preview', {
+        delimiter: csvDraft.delimiter,
+        mapping: csvDraft.mapping,
+        corrections: csvDraft.corrections,
+      })
+      : null
+  ), [csvDraft, wines]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(wines));
@@ -371,6 +434,53 @@ function App() {
     }
   };
 
+  const handleCsvSelect = async (event) => {
+    const [file] = event.target.files || [];
+    event.target.value = '';
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const text = decodeCsvFile(await file.arrayBuffer());
+      setCsvDraft({
+        fileName: file.name,
+        text,
+        delimiter: detectCsvDelimiter(text),
+        mapping: {},
+      });
+      setImportFeedback(null);
+    } catch (error) {
+      setImportFeedback({
+        kind: 'error',
+        text: `${t.importError}: ${error.message || 'The CSV file could not be read.'}`,
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const confirmCsvImport = () => {
+    if (!csvDraft || !csvPreview) return;
+    const result = importWinesFromCsv(csvDraft.text, wines, createId, {
+      delimiter: csvDraft.delimiter,
+      mapping: csvDraft.mapping,
+      corrections: csvDraft.corrections,
+    });
+    if (result.wines.length) {
+      setWines((current) => [...result.wines, ...current]);
+      setTab(0);
+    }
+    const summary = `${result.wines.length} ${result.wines.length === 1 ? t.bottle : t.bottles} imported.`;
+    const details = [...result.errors, ...result.messages];
+    setImportFeedback({
+      kind: result.errors.length && !result.wines.length ? 'error' : 'success',
+      text: result.errors.length && !result.wines.length
+        ? `${t.importError}: ${details.join(' ') || 'No valid wines were found.'}`
+        : `${t.importSuccess}: ${summary}${details.length ? ` ${details.join(' ')}` : ''}`,
+    });
+    setCsvDraft(null);
+  };
+
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
@@ -413,6 +523,10 @@ function App() {
           <label className={`ghost-button file-button${isImporting ? ' is-importing' : ''}`}>
             <span>{isImporting ? '…' : t.importWine}</span>
             <input type="file" accept="application/json,.json" onChange={handleImport} />
+          </label>
+          <label className={`ghost-button file-button${isImporting ? ' is-importing' : ''}`}>
+            <span>{isImporting ? '…' : t.importCsv}</span>
+            <input type="file" accept="text/csv,.csv" onChange={handleCsvSelect} disabled={isImporting} />
           </label>
           <button className="primary-button" onClick={openAddModal}>{t.addWine}</button>
         </div>
@@ -599,6 +713,135 @@ function App() {
           )}
         </main>
       </div>
+
+      {csvDraft && csvPreview && (
+        <div className="modal-backdrop" onClick={() => setCsvDraft(null)}>
+          <section
+            className="modal-card csv-import-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="csv-import-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div>
+                <h3 id="csv-import-title">{t.csvImportTitle}</h3>
+                <small>{csvDraft.fileName}</small>
+              </div>
+              <button className="ghost-button small" onClick={() => setCsvDraft(null)} aria-label={t.close}>×</button>
+            </div>
+
+            <div className="csv-import-settings">
+              <label>
+                <span>{t.csvDelimiter}</span>
+                <input
+                  aria-label={t.csvDelimiter}
+                  maxLength="1"
+                  value={csvDraft.delimiter}
+                  onChange={(event) => setCsvDraft((current) => ({
+                    ...current,
+                    delimiter: event.target.value,
+                    corrections: {},
+                  }))}
+                />
+              </label>
+              <span>{csvPreview.wines.length} valid · {csvPreview.errors.length} errors · {csvPreview.skipped} duplicates</span>
+            </div>
+
+            <h4>{t.csvColumnMapping}</h4>
+            <div className="csv-mapping-grid">
+              {Object.entries(t.csvFields).map(([field, label]) => {
+                const suggestion = suggestCsvMapping(csvPreview.headers)[field] || '';
+                const selected = Object.hasOwn(csvDraft.mapping, field) ? csvDraft.mapping[field] : suggestion;
+                return (
+                  <label key={field}>
+                    <span>{label}</span>
+                    <select
+                      value={selected}
+                      onChange={(event) => setCsvDraft((current) => ({
+                        ...current,
+                        mapping: { ...current.mapping, [field]: event.target.value },
+                      }))}
+                    >
+                      <option value="">—</option>
+                      {csvPreview.headers.map((header, index) => (
+                        <option key={`${header}-${index}`} value={header}>{header}</option>
+                      ))}
+                    </select>
+                  </label>
+                );
+              })}
+            </div>
+
+            {csvPreview.errors.length > 0 && (
+              <div className="csv-import-errors" role="alert">
+                <strong>{t.importError}</strong>
+                <ul>{csvPreview.errors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul>
+              </div>
+            )}
+            {csvPreview.messages.length > 0 && (
+              <p className="csv-import-notice">{csvPreview.messages.join(' ')}</p>
+            )}
+
+            <h4>{t.csvPreview}</h4>
+            {csvPreview.rows.length ? (
+              <div className="csv-preview-table-wrap">
+                <table className="csv-preview-table">
+                  <thead>
+                    <tr>
+                      {Object.keys(t.csvFields).map((field) => (
+                        <th key={field}>{t.csvFields[field]}</th>
+                      ))}
+                      <th>{t.csvStatus}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvPreview.rows.map((row) => (
+                      <tr key={row.lineNumber}>
+                        {Object.keys(t.csvFields).map((field) => (
+                          <td key={field}>
+                            <input
+                              className="csv-preview-input"
+                              aria-label={`${t.csvFields[field]}, row ${row.lineNumber}`}
+                              value={row.values[field]}
+                              onChange={(event) => setCsvDraft((current) => ({
+                                ...current,
+                                corrections: {
+                                  ...current.corrections,
+                                  [row.lineNumber]: {
+                                    ...current.corrections?.[row.lineNumber],
+                                    [field]: event.target.value,
+                                  },
+                                },
+                              }))}
+                            />
+                          </td>
+                        ))}
+                        <td className={row.error ? 'csv-row-error' : ''}>
+                          {row.error || (row.duplicate ? t.csvDuplicate : t.csvReady)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p>{t.csvNoRows}</p>
+            )}
+
+            <div className="modal-actions">
+              <button className="ghost-button" onClick={() => setCsvDraft(null)}>{t.cancel}</button>
+              <button
+                className="primary-button"
+                onClick={confirmCsvImport}
+                disabled={!csvPreview.wines.length}
+              >
+                {t.csvConfirm}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {modalOpen && (
         <div className="modal-backdrop" onClick={() => setModalOpen(false)}>
