@@ -33,6 +33,10 @@ Use **Import CSV** to preview a spreadsheet export before importing it. Comma-, 
 
 An import never replaces existing cellar data. Wines matching an existing `name`, `producer`, and `vintage` are skipped as duplicates, and invalid entries are reported without blocking valid entries in the same file. See [`examples/wines.json`](examples/wines.json) for JSON and [`examples/cellar.csv`](examples/cellar.csv) for CSV examples.
 
+## Scanning wine labels
+
+On iOS and Android mobile browsers, use **Scan wine label** in the add/edit form to capture or choose a label image. OpenCV.js detects the label boundary, corrects perspective, and applies local contrast enhancement before Tesseract.js performs OCR with English, German, and French language data. HEIC photos are converted in the browser when needed. Label images are processed on-device and never uploaded, though OCR engine and language files may download the first time. The scanner is hidden on desktop. Extracted details are editable suggestions; uncertain fields are left blank. Existing picture upload remains separate.
+
 ## Notes on migration strategy
 
 - The app stores cellar data in `localStorage` under the existing `weinkeller-wines-v2` key, preserving compatibility with the legacy app data model.

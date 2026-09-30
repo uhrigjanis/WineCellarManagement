@@ -758,6 +758,25 @@ h1 {
   gap: 8px;
 }
 
+.scan-field {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+
+.scan-field small {
+  color: var(--muted);
+}
+
+.scan-file-label {
+  min-height: 40px;
+}
+
+.scan-success {
+  margin: 0;
+  color: #166534;
+}
+
 .field-label {
   font-weight: 600;
   color: #334155;

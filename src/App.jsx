@@ -3,6 +3,7 @@ import { decodeCsvFile, detectCsvDelimiter, importWinesFromCsv, suggestCsvMappin
 import { importWinesFromJson } from './wineImport.js';
 import { getWineFormError } from './wineForm.js';
 import { readImageFile } from './wineImage.js';
+import { isMobileDevice, scanWineLabel } from './wineScan.js';
 
 const STORAGE_KEY = 'weinkeller-wines-v2';
 
@@ -94,6 +95,13 @@ const T = {
     pictureHelp: 'JPG, PNG oder WebP, maximal 5 MB.',
     pictureError: 'Das Bild konnte nicht gespeichert werden.',
     requiredFieldsError: 'Bitte Pflichtfelder ausfüllen.',
+    scanLabel: 'Etikett scannen',
+    scanBusy: 'Etikett wird gelesen …',
+    scanHelp: 'Das Etikett wird auf diesem Gerät zugeschnitten und gelesen. Erkannte Angaben bitte prüfen und korrigieren.',
+    scanSuccess: 'Angaben erkannt. Bitte Vorschläge prüfen und korrigieren.',
+    scanCropFallback: 'Etikett nicht automatisch erkannt; das gesamte Bild wurde gelesen. Bitte Vorschläge prüfen.',
+    scanNoFields: 'Kein eindeutiges Feld erkannt. Bitte Etikett erneut fotografieren oder Angaben manuell eingeben.',
+    scanError: 'Das Etikett konnte nicht gelesen werden.',
   },
   en: {
     wineTypes: {
@@ -175,6 +183,13 @@ const T = {
     pictureHelp: 'JPG, PNG, or WebP, up to 5 MB.',
     pictureError: 'The picture could not be saved.',
     requiredFieldsError: 'Please fill in the required fields.',
+    scanLabel: 'Scan wine label',
+    scanBusy: 'Reading label …',
+    scanHelp: 'The label is cropped and read on this device. Review and correct any detected suggestions.',
+    scanSuccess: 'Details detected. Review and correct the suggestions.',
+    scanCropFallback: 'Could not detect the label; scanned the full image instead. Review the suggestions.',
+    scanNoFields: 'No clear fields detected. Try another photo or enter the details manually.',
+    scanError: 'The label could not be read.',
   },
 };
 
@@ -243,6 +258,9 @@ function App() {
   const [csvDraft, setCsvDraft] = useState(null);
   const [imageError, setImageError] = useState('');
   const [formError, setFormError] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanFeedback, setScanFeedback] = useState(null);
+  const canScanLabels = isMobileDevice(navigator.userAgent, navigator.maxTouchPoints);
 
   const t = T[lang];
   const csvPreview = useMemo(() => (
@@ -378,6 +396,7 @@ function App() {
     setForm(createDefaultWine());
     setImageError('');
     setFormError('');
+    setScanFeedback(null);
     setModalOpen(true);
   };
 
@@ -385,6 +404,7 @@ function App() {
     setEditingId(wine.id);
     setImageError('');
     setFormError('');
+    setScanFeedback(null);
     setForm({
       ...wine,
       grapes: wine.grapes?.length
@@ -404,6 +424,39 @@ function App() {
       setImageError('');
     } catch (error) {
       setImageError(error.message || t.pictureError);
+    }
+  };
+
+  const handleScanLabel = async (event) => {
+    const [file] = event.target.files || [];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!canScanLabels) return;
+
+    setIsScanning(true);
+    setScanFeedback(null);
+    try {
+      const result = await scanWineLabel(file);
+      const suggestions = Object.fromEntries(
+        Object.entries(result.suggestions).filter(([, value]) => value),
+      );
+      if (Object.keys(suggestions).length) {
+        setForm((current) => ({ ...current, ...suggestions }));
+        setScanFeedback({
+          kind: 'success',
+          text: result.labelDetected ? t.scanSuccess : t.scanCropFallback,
+        });
+      } else {
+        setScanFeedback({ kind: 'error', text: t.scanNoFields });
+      }
+    } catch (error) {
+      setScanFeedback({
+        kind: 'error',
+        text: `${t.scanError} ${error.message || ''}`.trim(),
+      });
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -930,6 +983,29 @@ function App() {
                 <span>{t.notes}</span>
                 <textarea rows="4" value={form.notes || ''} onChange={(event) => updateForm('notes', event.target.value)} />
               </label>
+
+              {canScanLabels && (
+                <div className="scan-field">
+                  <span className="field-label">{t.scanLabel}</span>
+                  <label className="ghost-button small file-button scan-file-label">
+                    <span>{isScanning ? t.scanBusy : t.scanLabel}</span>
+                    <input
+                      type="file"
+                      accept="image/*,.heic,.heif"
+                      capture="environment"
+                      aria-label={t.scanLabel}
+                      disabled={isScanning}
+                      onChange={handleScanLabel}
+                    />
+                  </label>
+                  <small>{t.scanHelp}</small>
+                  {scanFeedback && (
+                    <p className={scanFeedback.kind === 'error' ? 'field-error' : 'scan-success'} role={scanFeedback.kind === 'error' ? 'alert' : 'status'}>
+                      {scanFeedback.text}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="picture-field">
                 <span className="field-label">{t.picture}</span>
