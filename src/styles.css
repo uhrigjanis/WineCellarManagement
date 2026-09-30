@@ -73,28 +73,82 @@ h1 {
   flex-wrap: wrap;
 }
 
-.export-controls {
-  display: flex;
-  align-items: end;
-  gap: 8px;
+.import-export {
+  position: relative;
 }
 
-.export-controls label {
+.import-export-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: min(340px, calc(100vw - 28px));
+  max-height: min(80vh, 600px);
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.import-export-actions,
+.export-menu {
   display: grid;
-  gap: 3px;
+  gap: 10px;
+}
+
+.import-export-actions .ghost-button,
+.export-menu > .primary-button {
+  width: 100%;
+}
+
+.import-export-actions .ghost-button {
+  justify-content: flex-start;
+}
+
+.import-export :focus-visible {
+  outline: 3px solid rgba(184, 50, 50, 0.24);
+  outline-offset: 2px;
+}
+
+.import-export-panel label {
+  display: grid;
+  gap: 4px;
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
-.export-controls select {
-  max-width: 142px;
+.import-export-panel select {
+  width: 100%;
+  min-height: 42px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: #fff;
-  color: var(--ink);
-  font: inherit;
+  color: #0f172a;
+}
+
+.export-menu-back {
+  width: fit-content;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .file-button {
@@ -914,8 +968,9 @@ h1 {
     flex-wrap: wrap;
   }
 
-  .export-controls {
-    flex-wrap: wrap;
+  .import-export-panel {
+    left: 0;
+    right: auto;
   }
 
   .stats-grid,
