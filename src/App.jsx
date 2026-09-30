@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { decodeCsvFile, detectCsvDelimiter, importWinesFromCsv, suggestCsvMapping } from './csvImport.js';
 import { importWinesFromJson } from './wineImport.js';
+import { downloadWineExport, selectWinesForExport } from './wineExport.js';
 import { getWineFormError } from './wineForm.js';
 import { readImageFile } from './wineImage.js';
 
@@ -26,6 +27,15 @@ const T = {
     addWine: 'Wein hinzufügen',
     importWine: 'JSON importieren',
     importCsv: 'CSV importieren',
+    exportWines: 'Exportieren',
+    exportScope: 'Umfang',
+    exportAll: 'Alle Weine',
+    exportVisible: 'Sichtbare Weine',
+    exportSelected: 'Ausgewählte Weine',
+    exportFormat: 'Format',
+    exportJson: 'JSON',
+    exportCsv: 'CSV',
+    exportSelection: 'Für Export auswählen',
     importSuccess: 'Import erfolgreich',
     importError: 'Import fehlgeschlagen',
     importHelp: 'Wähle eine JSON-Datei mit Wein-Daten aus.',
@@ -107,6 +117,15 @@ const T = {
     addWine: 'Add wine',
     importWine: 'Import JSON',
     importCsv: 'Import CSV',
+    exportWines: 'Export',
+    exportScope: 'Scope',
+    exportAll: 'All wines',
+    exportVisible: 'Visible wines',
+    exportSelected: 'Selected wines',
+    exportFormat: 'Format',
+    exportJson: 'JSON',
+    exportCsv: 'CSV',
+    exportSelection: 'Select for export',
     importSuccess: 'Import successful',
     importError: 'Import failed',
     importHelp: 'Choose a JSON file containing wine data.',
@@ -232,6 +251,9 @@ function App() {
   });
   const [tab, setTab] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedExportIds, setSelectedExportIds] = useState([]);
+  const [exportScope, setExportScope] = useState('all');
+  const [exportFormat, setExportFormat] = useState('json');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [sort, setSort] = useState({ key: 'rating', dir: 'desc' });
@@ -345,7 +367,24 @@ function App() {
 
   const handleDeleteWine = (id) => {
     setWines((current) => current.filter((wine) => wine.id !== id));
+    setSelectedExportIds((current) => current.filter((selectedId) => selectedId !== id));
     if (selectedId === id) setSelectedId(null);
+  };
+
+  const handleExport = () => {
+    const exportWines = selectWinesForExport(
+      wines,
+      exportScope,
+      visibleList.map((wine) => wine.id),
+      selectedExportIds,
+    );
+    downloadWineExport(exportWines, exportFormat);
+  };
+
+  const toggleExportSelection = (id) => {
+    setSelectedExportIds((current) => (
+      current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id]
+    ));
   };
 
   const handleToggleArchive = (id) => {
@@ -528,6 +567,30 @@ function App() {
             <span>{isImporting ? '…' : t.importCsv}</span>
             <input type="file" accept="text/csv,.csv" onChange={handleCsvSelect} disabled={isImporting} />
           </label>
+          <div className="export-controls">
+            <label>
+              <span>{t.exportScope}</span>
+              <select value={exportScope} onChange={(event) => setExportScope(event.target.value)}>
+                <option value="all">{t.exportAll}</option>
+                <option value="visible">{t.exportVisible}</option>
+                <option value="selected">{t.exportSelected}</option>
+              </select>
+            </label>
+            <label>
+              <span>{t.exportFormat}</span>
+              <select value={exportFormat} onChange={(event) => setExportFormat(event.target.value)}>
+                <option value="json">{t.exportJson}</option>
+                <option value="csv">{t.exportCsv}</option>
+              </select>
+            </label>
+            <button
+              className="ghost-button"
+              onClick={handleExport}
+              disabled={exportScope === 'selected' && !selectedExportIds.length}
+            >
+              {t.exportWines}
+            </button>
+          </div>
           <button className="primary-button" onClick={openAddModal}>{t.addWine}</button>
         </div>
       </header>
@@ -613,6 +676,14 @@ function App() {
             <div className="card-grid">
               {visibleList.map((wine) => (
                 <article key={wine.id} className={selectedWine?.id === wine.id ? 'wine-card selected' : 'wine-card'} onClick={() => setSelectedId(wine.id)}>
+                <input
+                  className="wine-export-checkbox"
+                  type="checkbox"
+                  aria-label={`${t.exportSelection}: ${wine.name}`}
+                  checked={selectedExportIds.includes(wine.id)}
+                  onClick={(event) => event.stopPropagation()}
+                  onChange={() => toggleExportSelection(wine.id)}
+                />
                 {wine.image ? (
                   <img className="wine-image" src={wine.image} alt={wine.name} />
                 ) : (

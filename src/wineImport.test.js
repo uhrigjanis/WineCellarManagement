@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { importWinesFromJson } from './wineImport.js';
+import { serializeWinesAsJson } from './wineExport.js';
 
 const validWine = {
   name: 'Château Margaux',
@@ -66,4 +67,32 @@ test('rejects numeric values supplied as strings', () => {
 
   assert.equal(result.wines.length, 0);
   assert.match(result.errors[0], /numeric values/i);
+});
+
+test('reimports a complete app wine export with its metadata and supported type field', () => {
+  const cellarWine = {
+    id: 'exported-id',
+    name: 'Château Margaux',
+    producer: 'Château Margaux',
+    region: 'Bordeaux',
+    country: 'France',
+    type: 'red',
+    qty: 12,
+    price: 89.99,
+    vintage: 2015,
+    rating: 4.8,
+    grapes: [{ id: 'grape-1', name: 'Cabernet Sauvignon', pct: 75 }],
+    alcohol: '13.5',
+    cellar: 'Keller 2',
+    drinkFrom: '2025',
+    drinkUntil: '2040',
+    notes: 'Excellent',
+    image: 'data:image/png;base64,abc',
+    tags: ['favorite'],
+    addedAt: '2024-03-04T05:06:07.000Z',
+  };
+  const result = importWinesFromJson(serializeWinesAsJson([cellarWine]), [], () => 'new-id');
+
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.wines, [{ ...cellarWine, id: 'new-id' }]);
 });
