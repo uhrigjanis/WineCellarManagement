@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Château Margaux",
+    "producer": "Château Margaux",
+    "region": "Bordeaux",
+    "country": "France",
+    "style": "red",
+    "qty": 12,
+    "price": 89.99,
+    "vintage": 2015,
+    "rating": 4.8,
+    "grapes": [
+      { "name": "Cabernet Sauvignon", "pct": 75 },
+      { "name": "Merlot", "pct": 25 }
+    ]
+  }
+]

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Wine cellar JSON export",
+  "description": "An exported cellar is an array of wine records. Additional stored wine metadata is preserved.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "id",
+      "name",
+      "producer",
+      "region",
+      "country",
+      "type",
+      "qty",
+      "price",
+      "vintage",
+      "rating",
+      "grapes"
+    ],
+    "properties": {
+      "id": { "type": "string" },
+      "name": { "type": "string" },
+      "producer": { "type": "string" },
+      "region": { "type": "string" },
+      "country": { "type": "string" },
+      "type": { "enum": ["red", "white", "sparkling", "rose"] },
+      "qty": { "type": "integer", "minimum": 0 },
+      "price": { "type": "number", "minimum": 0 },
+      "vintage": { "type": "integer" },
+      "rating": { "type": "number", "minimum": 0, "maximum": 5 },
+      "grapes": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["name", "pct"],
+          "properties": {
+            "name": { "type": "string" },
+            "pct": { "type": "number", "minimum": 0, "maximum": 100 }
+          },
+          "additionalProperties": true
+        }
+      },
+      "alcohol": { "type": "string" },
+      "cellar": { "type": "string" },
+      "drinkFrom": { "type": "string" },
+      "drinkUntil": { "type": "string" },
+      "notes": { "type": "string" },
+      "image": { "type": "string" },
+      "addedAt": { "type": "string", "format": "date-time" },
+      "updatedAt": { "type": "string", "format": "date-time" }
+    },
+    "additionalProperties": true
+  }
+}
