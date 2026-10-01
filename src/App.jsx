@@ -6,6 +6,7 @@ import { getWineFormError } from './wineForm.js';
 import { readImageFile } from './wineImage.js';
 import { getCountryFlagEmoji } from './countryFlag.js';
 import { transitionImportExportMenu } from './importExportMenu.js';
+import { filterWines, getWineFilterOptions } from './wineFilters.js';
 
 const STORAGE_KEY = 'weinkeller-wines-v2';
 
@@ -71,6 +72,12 @@ const T = {
     addToCellar: 'Zum Keller hinzufügen',
     saveChanges: 'Änderungen speichern',
     search: 'Wein oder Weingut …',
+    filterCountry: 'Land',
+    filterProducer: 'Produzent / Weingut',
+    filterGrape: 'Rebsorte',
+    filterRegion: 'Anbaugebiet',
+    filterVintage: 'Jahrgang',
+    clearFilters: 'Filter zurücksetzen',
     wineName: 'Weinname',
     producer: 'Produzent / Weingut',
     vintage: 'Jahrgang',
@@ -163,6 +170,12 @@ const T = {
     addToCellar: 'Add to cellar',
     saveChanges: 'Save changes',
     search: 'Wine or producer…',
+    filterCountry: 'Country',
+    filterProducer: 'Producer / Winery',
+    filterGrape: 'Grape variety',
+    filterRegion: 'Region',
+    filterVintage: 'Vintage',
+    clearFilters: 'Clear filters',
     wineName: 'Wine name',
     producer: 'Producer / Winery',
     vintage: 'Vintage',
@@ -279,6 +292,13 @@ function App() {
   const importFileInputRef = useRef(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [metadataFilters, setMetadataFilters] = useState({
+    country: '',
+    producer: '',
+    grape: '',
+    region: '',
+    vintage: '',
+  });
   const [sort, setSort] = useState({ key: 'rating', dir: 'desc' });
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -334,12 +354,13 @@ function App() {
 
   const cellarWines = useMemo(() => wines.filter((wine) => wine.qty > 0), [wines]);
   const archiveWines = useMemo(() => wines.filter((wine) => wine.qty <= 0), [wines]);
+  const filterOptions = useMemo(() => getWineFilterOptions(wines), [wines]);
 
   const visibleList = useMemo(() => {
-    const list = (tab === 0 ? cellarWines : archiveWines).filter((wine) => {
-      const matchesText = !search || `${wine.name} ${wine.producer}`.toLowerCase().includes(search.toLowerCase());
-      const matchesType = typeFilter === 'all' || wine.type === typeFilter;
-      return matchesText && matchesType;
+    const list = filterWines(tab === 0 ? cellarWines : archiveWines, {
+      search,
+      type: typeFilter,
+      ...metadataFilters,
     });
 
     return [...list].sort((a, b) => {
@@ -353,7 +374,7 @@ function App() {
 
       return (Number(left) - Number(right)) * direction;
     });
-  }, [archiveWines, cellarWines, search, sort, tab, typeFilter]);
+  }, [archiveWines, cellarWines, metadataFilters, search, sort, tab, typeFilter]);
 
   const stats = useMemo(() => {
     const active = cellarWines;
@@ -743,6 +764,47 @@ function App() {
                 {t.wineTypes[key]}
               </button>
             ))}
+          </div>
+
+          <div className="metadata-filters">
+            {[
+              ['country', t.filterCountry],
+              ['producer', t.filterProducer],
+              ['grape', t.filterGrape],
+              ['region', t.filterRegion],
+              ['vintage', t.filterVintage],
+            ].map(([key, label]) => (
+              <label key={key}>
+                {label}
+                <select
+                  aria-label={label}
+                  value={metadataFilters[key]}
+                  onChange={(event) => setMetadataFilters((current) => ({
+                    ...current,
+                    [key]: event.target.value,
+                  }))}
+                >
+                  <option value="">{t.all}</option>
+                  {filterOptions[key].map((value) => (
+                    <option key={value} value={value}>{value}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
+            {Object.values(metadataFilters).some(Boolean) && (
+              <button
+                className="ghost-button small"
+                onClick={() => setMetadataFilters({
+                  country: '',
+                  producer: '',
+                  grape: '',
+                  region: '',
+                  vintage: '',
+                })}
+              >
+                {t.clearFilters}
+              </button>
+            )}
           </div>
 
           <div className="sort-box">

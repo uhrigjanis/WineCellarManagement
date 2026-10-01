@@ -325,6 +325,30 @@ h1 {
   color: var(--primary);
 }
 
+.metadata-filters {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.metadata-filters label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.metadata-filters select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 7px 10px;
+  color: #0f172a;
+}
+
 .sort-box {
   display: grid;
   gap: 8px;

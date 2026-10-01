@@ -37,7 +37,7 @@ An import never replaces existing cellar data. Wines matching an existing `name`
 
 ## Exporting wine data
 
-Use the export controls to download all wines, the wines currently visible after search and type filtering, or the wines checked for export. JSON exports preserve each complete wine record, including grapes, notes, images, and other stored metadata; JavaScript date values are serialized as ISO 8601 strings. The JSON shape is described by [`examples/wine-export-schema.json`](examples/wine-export-schema.json). For example:
+Use the export controls to download all wines, the wines currently visible after search and filtering, or the wines checked for export. The cellar and archive lists support simultaneous filters by country, producer, grape variety, region, and vintage alongside wine type and search. JSON exports preserve each complete wine record, including grapes, notes, images, and other stored metadata; JavaScript date values are serialized as ISO 8601 strings. The JSON shape is described by [`examples/wine-export-schema.json`](examples/wine-export-schema.json). For example:
 
 ```json
 [
