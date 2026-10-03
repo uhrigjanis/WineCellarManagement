@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { decodeCsvFile, detectCsvDelimiter, importWinesFromCsv, suggestCsvMapping } from './csvImport.js';
 import { importWinesFromJson } from './wineImport.js';
 import { downloadWineExport, selectWinesForExport } from './wineExport.js';
+import { readFileAsArrayBuffer, readFileAsText } from './fileReader.js';
 import { getWineFormError } from './wineForm.js';
 import { readImageFile } from './wineImage.js';
 import { getCountryFlagEmoji } from './countryFlag.js';
@@ -525,7 +526,7 @@ function App() {
 
     setIsImporting(true);
     try {
-      const result = importWinesFromJson(await file.text(), wines, createId);
+      const result = importWinesFromJson(await readFileAsText(file), wines, createId);
       if (result.wines.length) {
         setWines((current) => [...result.wines, ...current]);
         setTab(0);
@@ -552,7 +553,7 @@ function App() {
 
     setIsImporting(true);
     try {
-      const text = decodeCsvFile(await file.arrayBuffer());
+      const text = decodeCsvFile(await readFileAsArrayBuffer(file));
       setCsvDraft({
         fileName: file.name,
         text,
@@ -663,22 +664,12 @@ function App() {
                       ref={importActionRef}
                       disabled={isImporting}
                       onClick={() => {
-                        setImportExportMenu('closed');
                         importFileInputRef.current?.click();
+                        setImportExportMenu('closed');
                       }}
                     >
                       {isImporting ? '…' : t.importAction}
                     </button>
-                    <input
-                      className="visually-hidden"
-                      ref={importFileInputRef}
-                      type="file"
-                      accept="application/json,.json,text/csv,.csv"
-                      onChange={handleImportSelection}
-                      disabled={isImporting}
-                      aria-hidden="true"
-                      tabIndex={-1}
-                    />
                     <button
                       className="ghost-button"
                       type="button"
@@ -727,6 +718,16 @@ function App() {
                 )}
               </div>
             )}
+            <input
+              className="visually-hidden"
+              ref={importFileInputRef}
+              type="file"
+              accept="application/json,.json,text/csv,.csv"
+              onChange={handleImportSelection}
+              disabled={isImporting}
+              aria-hidden="true"
+              tabIndex={-1}
+            />
           </div>
           <button className="primary-button" onClick={openAddModal}>{t.addWine}</button>
         </div>
