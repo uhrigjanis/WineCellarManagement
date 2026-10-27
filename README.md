@@ -25,6 +25,33 @@ npm run build
 
 The production bundle is generated into the `dist/` folder.
 
+## Cloud storage (Firebase)
+
+Without signing in, wines are stored in the browser (`localStorage`) and are lost when browser data is cleared. Sign in with Google to store the cellar in Firebase Firestore instead:
+
+- Wines are saved per user under `users/{uid}/wines/{wineId}` and sync live between devices.
+- Firestore keeps an offline copy in IndexedDB, so the app keeps working without a connection and syncs later.
+- On sign-in, wines already saved on the device are uploaded once (duplicates by `name`, `producer`, and `vintage` are skipped) and then removed from `localStorage`.
+- Each wine, including its picture, must stay under Firestore's 1 MiB document limit.
+
+### Setup
+
+1. Create a Firebase project, register a web app, enable **Google** sign-in, and add your Pages domain (e.g. `uhrigjanis.github.io`) under *Authentication → Settings → Authorized domains*.
+2. Create a Firestore database and publish the rules from [`firestore.rules`](firestore.rules), which only let users access their own wines.
+3. Add the web app config as GitHub Actions **variables** (*Settings → Secrets and variables → Actions → Variables*): `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`. The Pages workflow passes them to the build. These values are not secret; the security rules protect the data.
+4. For local development, copy [`.env.example`](.env.example) to `.env.local` and fill in the same values.
+
+If the variables are missing, the app hides the sign-in button and works in browser-only mode.
+
+### Local emulators
+
+To try the cloud sync without touching real data, start the Firebase emulators and point the app at them:
+
+```bash
+npx firebase-tools emulators:start --project demo-weinkeller --only auth,firestore
+VITE_FIREBASE_EMULATOR=true VITE_FIREBASE_PROJECT_ID=demo-weinkeller npm run dev
+```
+
 ## Importing wine data
 
 Use **Import JSON** in the toolbar to select a JSON file from a desktop or mobile device. The file must contain an array of wines with `name`, `producer`, `region`, `country`, `style`, `qty`, `price`, `vintage`, `rating`, and `grapes` fields. Each grape must provide a `name` and numeric `pct`; `style` must be `red`, `white`, `sparkling`, or `rose`.

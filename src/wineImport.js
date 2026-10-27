@@ -2,7 +2,7 @@ const REQUIRED_FIELDS = ['name', 'producer', 'region', 'country', 'qty', 'price'
 const WINE_STYLES = new Set(['red', 'white', 'sparkling', 'rose']);
 const isNumber = (value) => typeof value === 'number' && Number.isFinite(value);
 
-const duplicateKey = (wine) => [
+export const duplicateKey = (wine) => [
   wine.name,
   wine.producer,
   wine.vintage,

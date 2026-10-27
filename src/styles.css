@@ -666,6 +666,29 @@ h1 {
   color: white;
 }
 
+.cloud-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.cloud-button:disabled {
+  opacity: 0.6;
+}
+
+.cloud-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.cloud-button.synced .cloud-dot { background: #16a34a; }
+.cloud-button.pending .cloud-dot { background: #d97706; }
+.cloud-button.offline .cloud-dot { background: #64748b; }
+.cloud-button.error .cloud-dot { background: #dc2626; }
+
 .ghost-button.danger {
   color: var(--primary);
   border-color: rgba(184,50,50,0.25);

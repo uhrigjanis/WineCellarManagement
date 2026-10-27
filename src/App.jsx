@@ -8,8 +8,7 @@ import { readImageFile } from './wineImage.js';
 import { getCountryFlagEmoji } from './countryFlag.js';
 import { transitionImportExportMenu } from './importExportMenu.js';
 import { filterWines, getWineFilterOptions } from './wineFilters.js';
-
-const STORAGE_KEY = 'weinkeller-wines-v2';
+import { useWineStorage } from './useWineStorage.js';
 
 const TYPE_META = {
   red: { color: '#b83232' },
@@ -116,6 +115,30 @@ const T = {
     pictureHelp: 'JPG, PNG oder WebP, maximal 5 MB.',
     pictureError: 'Das Bild konnte nicht gespeichert werden.',
     requiredFieldsError: 'Bitte Pflichtfelder ausfüllen.',
+    cloudSignIn: 'Anmelden',
+    cloudSignInTitle: 'Mit Google anmelden und Weine in der Cloud speichern',
+    cloudAccountTitle: 'Angemeldet als {email}. Tippen zum Abmelden.',
+    cloudSignOutConfirm: 'Abmelden? Deine Weine bleiben in der Cloud gespeichert und erscheinen nach dem nächsten Anmelden wieder.',
+    cloudStatus: {
+      connecting: 'Verbinde…',
+      synced: 'Gespeichert',
+      pending: 'Speichert…',
+      offline: 'Offline',
+      error: 'Sync-Fehler',
+    },
+    cloudNotices: {
+      migrated: '{count} Weine von diesem Gerät in die Cloud übernommen.',
+      migratedSkipped: '{count} Weine übernommen. {skipped} Weine sind zu groß (Bild) und bleiben nur auf diesem Gerät.',
+      'migration-failed': 'Die Weine auf diesem Gerät konnten noch nicht hochgeladen werden. Beim nächsten Start wird es erneut versucht.',
+      'too-large': 'Der Wein ist zu groß für die Cloud. Bitte ein kleineres Bild verwenden.',
+      'save-failed': 'Die Änderung konnte nicht gespeichert werden.',
+      'load-failed': 'Die Weine konnten nicht aus der Cloud geladen werden.',
+      'sign-in-failed': 'Die Anmeldung ist fehlgeschlagen.',
+      'sign-out-failed': 'Die Abmeldung ist fehlgeschlagen.',
+      'unauthorized-domain': 'Diese Adresse ist in Firebase nicht freigegeben (Authentication → Einstellungen → Autorisierte Domains).',
+      unavailable: 'Die Cloud ist gerade nicht erreichbar. Die Weine werden vorerst auf diesem Gerät gespeichert.',
+      'local-full': 'Der Speicher im Browser ist voll. Melde dich an, um die Weine in der Cloud zu speichern.',
+    },
   },
   en: {
     wineTypes: {
@@ -214,6 +237,30 @@ const T = {
     pictureHelp: 'JPG, PNG, or WebP, up to 5 MB.',
     pictureError: 'The picture could not be saved.',
     requiredFieldsError: 'Please fill in the required fields.',
+    cloudSignIn: 'Sign in',
+    cloudSignInTitle: 'Sign in with Google to store your wines in the cloud',
+    cloudAccountTitle: 'Signed in as {email}. Tap to sign out.',
+    cloudSignOutConfirm: 'Sign out? Your wines stay in the cloud and come back the next time you sign in.',
+    cloudStatus: {
+      connecting: 'Connecting…',
+      synced: 'Saved',
+      pending: 'Saving…',
+      offline: 'Offline',
+      error: 'Sync error',
+    },
+    cloudNotices: {
+      migrated: 'Moved {count} wines from this device to the cloud.',
+      migratedSkipped: 'Moved {count} wines. {skipped} wines are too large (picture) and stay on this device only.',
+      'migration-failed': 'The wines on this device could not be uploaded yet. This will be retried on the next start.',
+      'too-large': 'This wine is too large for the cloud. Please use a smaller picture.',
+      'save-failed': 'The change could not be saved.',
+      'load-failed': 'The wines could not be loaded from the cloud.',
+      'sign-in-failed': 'Sign-in failed.',
+      'sign-out-failed': 'Sign-out failed.',
+      'unauthorized-domain': 'This address is not authorized in Firebase (Authentication → Settings → Authorized domains).',
+      unavailable: 'The cloud is not reachable right now. Wines are saved on this device for now.',
+      'local-full': 'Browser storage is full. Sign in to store your wines in the cloud.',
+    },
   },
 };
 
@@ -267,19 +314,7 @@ function CountryFlag({ country }) {
 
 function App() {
   const [lang, setLang] = useState('de');
-  const [wines, setWines] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      return [];
-    }
-
-    try {
-      const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const { wines, setWines, cloud } = useWineStorage(createId);
   const [tab, setTab] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
   const [selectedExportIds, setSelectedExportIds] = useState([]);
@@ -348,10 +383,6 @@ function App() {
       })
       : null
   ), [csvDraft, wines]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(wines));
-  }, [wines]);
 
   const cellarWines = useMemo(() => wines.filter((wine) => wine.qty > 0), [wines]);
   const archiveWines = useMemo(() => wines.filter((wine) => wine.qty <= 0), [wines]);
@@ -729,9 +760,45 @@ function App() {
               tabIndex={-1}
             />
           </div>
+          {cloud.configured && (cloud.user ? (
+            <button
+              className={`ghost-button cloud-button ${cloud.status}`}
+              type="button"
+              title={t.cloudAccountTitle.replace('{email}', cloud.user.email || '')}
+              onClick={() => {
+                if (window.confirm(t.cloudSignOutConfirm)) cloud.signOut();
+              }}
+            >
+              <span className="cloud-dot" aria-hidden="true" />
+              {t.cloudStatus[cloud.status] || t.cloudStatus.connecting}
+            </button>
+          ) : (
+            <button
+              className="ghost-button cloud-button"
+              type="button"
+              title={t.cloudSignInTitle}
+              disabled={cloud.status === 'connecting'}
+              onClick={cloud.signIn}
+            >
+              ☁︎ {cloud.status === 'connecting' ? t.cloudStatus.connecting : t.cloudSignIn}
+            </button>
+          ))}
           <button className="primary-button" onClick={openAddModal}>{t.addWine}</button>
         </div>
       </header>
+
+      {cloud.notice && (
+        <div className={`import-feedback ${cloud.notice.kind}`} role="status">
+          <span>
+            {(cloud.notice.code === 'migrated' && cloud.notice.skipped
+              ? t.cloudNotices.migratedSkipped
+              : t.cloudNotices[cloud.notice.code] || t.cloudNotices['save-failed'])
+              .replace('{count}', cloud.notice.count ?? 0)
+              .replace('{skipped}', cloud.notice.skipped ?? 0)}
+          </span>
+          <button className="feedback-close" onClick={cloud.clearNotice} aria-label={t.close}>×</button>
+        </div>
+      )}
 
       {importFeedback && (
         <div className={`import-feedback ${importFeedback.kind}`} role="status">
