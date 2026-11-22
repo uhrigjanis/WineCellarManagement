@@ -957,12 +957,30 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .sidebar {
-    order: 2;
+  /* Search, filters and sort sit above the wine list so filtering
+     doesn't require scrolling past every bottle first. */
+  .metadata-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .content-panel {
-    order: 1;
+  .metadata-filters .ghost-button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .sort-box {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    margin-bottom: 0;
+  }
+
+  .sort-box label {
+    grid-column: 1 / -1;
+  }
+
+  /* The content panel already shows these totals as metric cards. */
+  .sidebar .stat-card {
+    display: none;
   }
 }
 
