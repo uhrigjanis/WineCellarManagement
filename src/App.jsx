@@ -5,6 +5,8 @@ import { downloadWineExport, selectWinesForExport } from './wineExport.js';
 import { readFileAsArrayBuffer, readFileAsText } from './fileReader.js';
 import { getWineFormError } from './wineForm.js';
 import { readImageFile } from './wineImage.js';
+import { scanWineLabel } from './labelScan.js';
+import { applyLabelSuggestions } from './labelSuggestions.js';
 import { getCountryFlagEmoji } from './countryFlag.js';
 import { transitionImportExportMenu } from './importExportMenu.js';
 import { countActiveFilters, filterWines, getWineFilterOptions } from './wineFilters.js';
@@ -117,8 +119,17 @@ const T = {
     picture: 'Bild',
     choosePicture: 'Bild auswählen',
     removePicture: 'Bild entfernen',
-    pictureHelp: 'JPG, PNG oder WebP, maximal 5 MB.',
+    pictureHelp: 'JPG, PNG oder WebP, maximal 5 MB. Bei einem Foto des Etiketts werden erkannte Angaben automatisch eingetragen.',
     pictureError: 'Das Bild konnte nicht gespeichert werden.',
+    labelScanBusy: 'Etikett wird gelesen … (beim ersten Mal wird die Texterkennung geladen, ca. 30 MB)',
+    labelScanSuccess: (fields) => `Vom Etikett übernommen: ${fields.join(', ')}. Bitte prüfen.`,
+    labelScanNothingNew: 'Etikett gelesen – die erkannten Angaben sind bereits ausgefüllt.',
+    labelScanNothing: 'Auf dem Bild wurden keine Weindaten erkannt. Bitte die Angaben manuell eingeben.',
+    labelScanError: 'Das Etikett konnte nicht gelesen werden (Texterkennung nicht verfügbar – evtl. offline?). Bitte die Angaben manuell eingeben.',
+    labelScanFields: {
+      name: 'Weinname', producer: 'Produzent', vintage: 'Jahrgang', alcohol: 'Alkohol', type: 'Weinart',
+      region: 'Anbaugebiet', country: 'Land', grapes: 'Rebsorten',
+    },
     requiredFieldsError: 'Bitte Pflichtfelder ausfüllen.',
   },
   en: {
@@ -219,8 +230,17 @@ const T = {
     picture: 'Picture',
     choosePicture: 'Choose picture',
     removePicture: 'Remove picture',
-    pictureHelp: 'JPG, PNG, or WebP, up to 5 MB.',
+    pictureHelp: 'JPG, PNG, or WebP, up to 5 MB. For a photo of the label, recognised details are filled in automatically.',
     pictureError: 'The picture could not be saved.',
+    labelScanBusy: 'Reading label … (the first time, text recognition is downloaded, about 30 MB)',
+    labelScanSuccess: (fields) => `Taken from the label: ${fields.join(', ')}. Please check.`,
+    labelScanNothingNew: 'Label read – the recognised details are already filled in.',
+    labelScanNothing: 'No wine details were recognised in the picture. Please enter them manually.',
+    labelScanError: 'The label could not be read (text recognition unavailable – offline?). Please enter the details manually.',
+    labelScanFields: {
+      name: 'wine name', producer: 'producer', vintage: 'vintage', alcohol: 'alcohol', type: 'wine type',
+      region: 'region', country: 'country', grapes: 'grapes',
+    },
     requiredFieldsError: 'Please fill in the required fields.',
   },
 };
@@ -320,6 +340,10 @@ function App() {
   const [csvDraft, setCsvDraft] = useState(null);
   const [imageError, setImageError] = useState('');
   const [formError, setFormError] = useState('');
+  const [labelScan, setLabelScan] = useState(null);
+  const labelScanTokenRef = useRef(0);
+  const formRef = useRef(form);
+  formRef.current = form;
 
   const t = T[lang];
 
@@ -494,6 +518,7 @@ function App() {
     setEditingId(null);
     setImageError('');
     setFormError('');
+    resetLabelScan();
     setForm(createDefaultWine());
   };
 
@@ -549,6 +574,7 @@ function App() {
     setForm(createDefaultWine());
     setImageError('');
     setFormError('');
+    resetLabelScan();
     setModalOpen(true);
   };
 
@@ -556,6 +582,7 @@ function App() {
     setEditingId(wine.id);
     setImageError('');
     setFormError('');
+    resetLabelScan();
     setForm({
       ...wine,
       grapes: wine.grapes?.length
@@ -570,11 +597,39 @@ function App() {
     event.target.value = '';
     if (!file) return;
 
+    scanLabel(file);
     try {
       updateForm('image', await readImageFile(file));
       setImageError('');
     } catch (error) {
       setImageError(error.message || t.pictureError);
+    }
+  };
+
+  const resetLabelScan = () => {
+    labelScanTokenRef.current += 1; // ignore results of scans still running
+    setLabelScan(null);
+  };
+
+  const scanLabel = async (file) => {
+    labelScanTokenRef.current += 1;
+    const token = labelScanTokenRef.current;
+    setLabelScan({ kind: 'busy', text: t.labelScanBusy });
+    try {
+      const { suggestions } = await scanWineLabel(file);
+      if (token !== labelScanTokenRef.current) return;
+      const { form: next, filled } = applyLabelSuggestions(formRef.current, suggestions, createDefaultWine(), createGrape);
+      if (filled.length) {
+        setForm(next);
+        setLabelScan({ kind: 'success', text: t.labelScanSuccess(filled.map((field) => t.labelScanFields[field])) });
+      } else if (Object.keys(suggestions).length) {
+        setLabelScan({ kind: 'info', text: t.labelScanNothingNew });
+      } else {
+        setLabelScan({ kind: 'error', text: t.labelScanNothing });
+      }
+    } catch (error) {
+      console.error('Label scan failed', error);
+      if (token === labelScanTokenRef.current) setLabelScan({ kind: 'error', text: t.labelScanError });
     }
   };
 
@@ -1322,6 +1377,12 @@ function App() {
                 </div>
                 <small>{t.pictureHelp}</small>
                 {imageError && <p className="field-error" role="alert">{imageError}</p>}
+                {labelScan && (
+                  <p className={`label-scan label-scan-${labelScan.kind}`} role={labelScan.kind === 'error' ? 'alert' : 'status'}>
+                    {labelScan.kind === 'busy' && <span className="label-scan-spinner" aria-hidden="true" />}
+                    {labelScan.text}
+                  </p>
+                )}
               </div>
             </div>
 
