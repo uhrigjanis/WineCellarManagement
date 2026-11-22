@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filterWines, getWineFilterOptions } from './wineFilters.js';
+import { countActiveFilters, filterWines, getWineFilterOptions } from './wineFilters.js';
 
 const wines = [
   {
@@ -69,4 +69,11 @@ test('returns distinct, sorted choices for each metadata filter', () => {
     region: ['Bordeaux', 'Rheingau'],
     vintage: ['2018', '2020'],
   });
+});
+
+test('counts the wine type and every selected metadata filter as active filters', () => {
+  assert.equal(countActiveFilters(), 0);
+  assert.equal(countActiveFilters({ type: 'all', country: '', producer: '' }), 0);
+  assert.equal(countActiveFilters({ type: 'red' }), 1);
+  assert.equal(countActiveFilters({ type: 'white', country: 'Germany', vintage: '2020', grape: ' ' }), 3);
 });

@@ -40,3 +40,8 @@ export function filterWines(wines, { search = '', type = 'all', ...filters } = {
     });
   });
 }
+
+export function countActiveFilters({ type = 'all', ...filters } = {}) {
+  const typeCount = type && type !== 'all' ? 1 : 0;
+  return typeCount + FILTER_FIELDS.filter((field) => String(filters[field] ?? '').trim()).length;
+}

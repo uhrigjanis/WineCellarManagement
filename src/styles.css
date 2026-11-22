@@ -303,6 +303,109 @@ h1 {
   font-size: 20px;
 }
 
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 600;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.filter-toggle:hover,
+.filter-toggle.open {
+  border-color: rgba(184, 50, 50, 0.3);
+}
+
+.filter-toggle.open {
+  background: rgba(184, 50, 50, 0.05);
+}
+
+/* Funnel drawn with CSS so it inherits the text colour. */
+.filter-toggle-icon {
+  width: 14px;
+  height: 12px;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 0, 62% 48%, 62% 100%, 38% 85%, 38% 48%);
+  color: var(--muted);
+}
+
+.filter-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.filter-caret {
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.filter-toggle.open .filter-caret {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.text-button {
+  border: 0;
+  background: transparent;
+  padding: 6px 2px;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.filter-panel {
+  margin: -6px 0 18px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel-alt);
+  animation: filter-panel-in 0.18s ease-out;
+}
+
+.filter-panel .metadata-filters {
+  margin-bottom: 0;
+}
+
+@keyframes filter-panel-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.filter-toggle:focus-visible,
+.text-button:focus-visible,
+.wine-card:focus-visible,
+.detail-close:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .filter-list {
   display: flex;
   flex-wrap: wrap;
@@ -609,20 +712,77 @@ h1 {
   color: var(--muted);
 }
 
+/* Wine details open as a side sheet (bottom sheet on phones) only
+   after a wine has been chosen. */
+.detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(15, 23, 42, 0.32);
+  animation: detail-fade-in 0.2s ease-out;
+}
+
 .detail-panel {
-  margin-top: 24px;
+  position: relative;
+  width: min(480px, 100vw);
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  border-left: 1px solid var(--border);
+  border-top: 6px solid var(--wine-accent, #94a3b8);
+  box-shadow: -24px 0 60px rgba(15, 23, 42, 0.18);
+  padding: 28px 24px 32px;
+  animation: detail-slide-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.detail-panel .eyebrow {
+  color: var(--wine-accent, var(--muted));
+}
+
+.detail-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--border);
-  border-radius: 22px;
-  background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
-  padding: 22px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.detail-close:hover {
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+@keyframes detail-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes detail-slide-in {
+  from { transform: translateX(32px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes detail-sheet-in {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: none; opacity: 1; }
 }
 
 .detail-header {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: flex-start;
   gap: 16px;
   margin-bottom: 18px;
+  padding-right: 40px;
 }
 
 .detail-header h2 {
@@ -673,7 +833,7 @@ h1 {
 
 .detail-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -1026,5 +1186,31 @@ h1 {
 
   .tab-button {
     flex: 1;
+  }
+
+  .detail-backdrop {
+    align-items: flex-end;
+  }
+
+  .detail-panel {
+    width: 100%;
+    height: auto;
+    max-height: 88vh;
+    border-left: 0;
+    border-radius: 22px 22px 0 0;
+    padding: 24px 18px calc(28px + env(safe-area-inset-bottom));
+    animation-name: detail-sheet-in;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-panel,
+  .detail-backdrop,
+  .detail-panel {
+    animation: none;
+  }
+
+  .filter-caret {
+    transition: none;
   }
 }
