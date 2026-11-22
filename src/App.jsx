@@ -7,7 +7,7 @@ import { getWineFormError } from './wineForm.js';
 import { readImageFile } from './wineImage.js';
 import { getCountryFlagEmoji } from './countryFlag.js';
 import { transitionImportExportMenu } from './importExportMenu.js';
-import { filterWines, getWineFilterOptions } from './wineFilters.js';
+import { countActiveFilters, filterWines, getWineFilterOptions } from './wineFilters.js';
 
 const STORAGE_KEY = 'weinkeller-wines-v2';
 
@@ -79,6 +79,10 @@ const T = {
     filterRegion: 'Anbaugebiet',
     filterVintage: 'Jahrgang',
     clearFilters: 'Filter zurücksetzen',
+    filters: 'Filter',
+    activeFilters: (count) => (count === 1 ? '1 Filter aktiv' : `${count} Filter aktiv`),
+    wineDetails: 'Weindaten',
+    closeDetails: 'Weindaten schließen',
     wineName: 'Weinname',
     producer: 'Produzent / Weingut',
     vintage: 'Jahrgang',
@@ -177,6 +181,10 @@ const T = {
     filterRegion: 'Region',
     filterVintage: 'Vintage',
     clearFilters: 'Clear filters',
+    filters: 'Filters',
+    activeFilters: (count) => (count === 1 ? '1 filter active' : `${count} filters active`),
+    wineDetails: 'Wine details',
+    closeDetails: 'Close wine details',
     wineName: 'Wine name',
     producer: 'Producer / Winery',
     vintage: 'Vintage',
@@ -300,6 +308,9 @@ function App() {
     region: '',
     vintage: '',
   });
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const detailCloseRef = useRef(null);
+  const detailTriggerRef = useRef(null);
   const [sort, setSort] = useState({ key: 'rating', dir: 'desc' });
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -397,9 +408,57 @@ function App() {
   }, [cellarWines]);
 
   const selectedWine = useMemo(
-    () => wines.find((wine) => wine.id === selectedId) || visibleList[0] || null,
-    [selectedId, visibleList, wines],
+    () => wines.find((wine) => wine.id === selectedId) || null,
+    [selectedId, wines],
   );
+  const activeFilterCount = countActiveFilters({ type: typeFilter, ...metadataFilters });
+
+  const openWineDetails = (id, trigger) => {
+    detailTriggerRef.current = trigger || null;
+    setSelectedId(id);
+  };
+
+  const closeWineDetails = () => {
+    setSelectedId(null);
+    detailTriggerRef.current?.focus?.();
+    detailTriggerRef.current = null;
+  };
+
+  const resetFilters = () => {
+    setTypeFilter('all');
+    setMetadataFilters({
+      country: '',
+      producer: '',
+      grape: '',
+      region: '',
+      vintage: '',
+    });
+  };
+
+  const switchTab = (nextTab) => {
+    setTab(nextTab);
+    setSelectedId(null);
+  };
+
+  useEffect(() => {
+    if (!selectedWine) return undefined;
+    detailCloseRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [selectedWine?.id]);
+
+  useEffect(() => {
+    if (!selectedWine || modalOpen || csvDraft) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') closeWineDetails();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedWine, modalOpen, csvDraft]);
 
   const handleSaveWine = () => {
     const cleaned = { ...form };
@@ -741,10 +800,10 @@ function App() {
       )}
 
       <nav className="tab-nav" aria-label="Main navigation">
-        <button className={tab === 0 ? 'tab-button active' : 'tab-button'} onClick={() => setTab(0)}>
+        <button className={tab === 0 ? 'tab-button active' : 'tab-button'} onClick={() => switchTab(0)}>
           {t.navCellar}
         </button>
-        <button className={tab === 1 ? 'tab-button active' : 'tab-button'} onClick={() => setTab(1)}>
+        <button className={tab === 1 ? 'tab-button active' : 'tab-button'} onClick={() => switchTab(1)}>
           {t.navArchive}
         </button>
       </nav>
@@ -756,6 +815,32 @@ function App() {
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t.search} />
           </div>
 
+          <div className="filter-bar">
+            <button
+              type="button"
+              className={filtersOpen ? 'filter-toggle open' : 'filter-toggle'}
+              aria-expanded={filtersOpen}
+              aria-controls="wine-filters"
+              onClick={() => setFiltersOpen((current) => !current)}
+            >
+              <span className="filter-toggle-icon" aria-hidden="true" />
+              {t.filters}
+              {activeFilterCount > 0 && (
+                <span className="filter-count" aria-label={t.activeFilters(activeFilterCount)}>
+                  {activeFilterCount}
+                </span>
+              )}
+              <span className="filter-caret" aria-hidden="true" />
+            </button>
+            {activeFilterCount > 0 && !filtersOpen && (
+              <button type="button" className="text-button" onClick={resetFilters}>
+                {t.clearFilters}
+              </button>
+            )}
+          </div>
+
+          {filtersOpen && (
+          <div id="wine-filters" className="filter-panel">
           <div className="filter-list">
             <button className={typeFilter === 'all' ? 'filter-chip active' : 'filter-chip'} onClick={() => setTypeFilter('all')}>
               {t.all}
@@ -792,21 +877,14 @@ function App() {
                 </select>
               </label>
             ))}
-            {Object.values(metadataFilters).some(Boolean) && (
-              <button
-                className="ghost-button small"
-                onClick={() => setMetadataFilters({
-                  country: '',
-                  producer: '',
-                  grape: '',
-                  region: '',
-                  vintage: '',
-                })}
-              >
+            {activeFilterCount > 0 && (
+              <button className="ghost-button small" onClick={resetFilters}>
                 {t.clearFilters}
               </button>
             )}
           </div>
+          </div>
+          )}
 
           <div className="sort-box">
             <label>{t.sort}</label>
@@ -854,7 +932,21 @@ function App() {
           {visibleList.length ? (
             <div className="card-grid">
               {visibleList.map((wine) => (
-                <article key={wine.id} className={selectedWine?.id === wine.id ? 'wine-card selected' : 'wine-card'} onClick={() => setSelectedId(wine.id)}>
+                <article
+                  key={wine.id}
+                  className={selectedWine?.id === wine.id ? 'wine-card selected' : 'wine-card'}
+                  tabIndex={0}
+                  aria-haspopup="dialog"
+                  aria-label={`${wine.name}, ${wine.producer || ''} – ${t.wineDetails}`}
+                  onClick={(event) => openWineDetails(wine.id, event.currentTarget)}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openWineDetails(wine.id, event.currentTarget);
+                    }
+                  }}
+                >
                 <input
                   className="wine-export-checkbox"
                   type="checkbox"
@@ -897,14 +989,34 @@ function App() {
             </div>
           )}
 
+        </main>
+      </div>
+
           {selectedWine && (
-            <section className="detail-panel">
+            <div className="detail-backdrop" onClick={closeWineDetails}>
+            <section
+              className="detail-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="wine-detail-title"
+              style={{ '--wine-accent': TYPE_META[selectedWine.type]?.color || '#94a3b8' }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                ref={detailCloseRef}
+                type="button"
+                className="detail-close"
+                onClick={closeWineDetails}
+                aria-label={t.closeDetails}
+              >
+                ×
+              </button>
               <div className="detail-header">
                 <div className="detail-title">
                   {selectedWine.image && <img className="detail-image" src={selectedWine.image} alt={selectedWine.name} />}
                   <div>
                   <p className="eyebrow">{t.wineTypes[selectedWine.type] || selectedWine.type}</p>
-                  <h2>{selectedWine.name}</h2>
+                  <h2 id="wine-detail-title">{selectedWine.name}</h2>
                   </div>
                 </div>
                 <div className="actions">
@@ -971,9 +1083,8 @@ function App() {
                 )}
               </div>
             </section>
+            </div>
           )}
-        </main>
-      </div>
 
       {csvDraft && csvPreview && (
         <div className="modal-backdrop" onClick={() => setCsvDraft(null)}>
