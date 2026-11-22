@@ -65,6 +65,12 @@ Use the export controls to download all wines, the wines currently visible after
 
 CSV exports use the import-compatible columns `Winery`, `Wine name`, `Vintage`, `Region`, `Country`, `Wine type`, and `User cellar count`, in that order. Values with commas, quotes, or line breaks are escaped according to CSV rules, and Unicode text is retained. CSV contains these mapped fields; use JSON when you need the full record and its additional metadata. Both formats download as `winecellar-YYYY-MM-DD` files.
 
+## Scanning wine labels
+
+When you choose a picture in the add/edit form, the app also reads it as a wine label and fills in what it recognises: wine name, producer, vintage, alcohol, wine type, region, country, and grapes. Only fields that are empty or still at their new-wine default are filled, so nothing you typed is overwritten. A status line lists the fields taken from the label, or explains that nothing could be read so you can enter the details manually.
+
+Text recognition runs entirely in the browser with [PaddleOCR.js](https://www.npmjs.com/package/@paddleocr/paddleocr-js) (PP-OCRv6 small). The photo never leaves the device. On the first scan, the OCR models (~30 MB, from PaddlePaddle's model CDN) and the ONNX Runtime WASM files (jsDelivr) are downloaded and cached by the browser. In production builds OCR runs in a Web Worker; the dev server falls back to the main thread.
+
 ## Notes on migration strategy
 
 - The app stores cellar data in `localStorage` under the existing `weinkeller-wines-v2` key, preserving compatibility with the legacy app data model.
