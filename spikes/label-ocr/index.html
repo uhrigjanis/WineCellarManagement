@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Etiketten-OCR Vergleich (Spike #60)</title>
+  <style>
+    body { font: 15px/1.4 system-ui, sans-serif; margin: 0 auto; padding: 1rem; max-width: 1200px; color: #222; }
+    h1 { font-size: 1.3rem; margin: 0 0 .25rem; }
+    h2 { font-size: 1.05rem; margin: 1.25rem 0 .5rem; }
+    #device { color: #666; font-size: .8rem; word-break: break-word; }
+    .engine { display: flex; gap: .5rem; align-items: flex-start; padding: .4rem 0; }
+    .engine.disabled { opacity: .45; }
+    .photo { display: flex; gap: .75rem; margin-bottom: .75rem; }
+    .photo img { width: 90px; height: 120px; object-fit: cover; border-radius: 6px; }
+    .expected { display: grid; gap: .3rem; flex: 1; }
+    .expected input { font: inherit; padding: .35rem .5rem; border: 1px solid #ccc; border-radius: 6px; }
+    button { font: inherit; padding: .6rem 1rem; border-radius: 8px; border: 0; background: #7b1e3a; color: #fff; margin-right: .5rem; }
+    button.secondary { background: #e9e2e4; color: #222; }
+    button:disabled { opacity: .5; }
+    #status { margin: .75rem 0; font-weight: 600; min-height: 1.4em; }
+    #results { overflow-x: auto; }
+    table { border-collapse: collapse; font-size: .85rem; }
+    th, td { border: 1px solid #ddd; padding: .4rem; vertical-align: top; text-align: left; min-width: 140px; }
+    td img { width: 60px; height: 80px; object-fit: cover; }
+    tr.summary { background: #faf6f7; }
+    .hit { color: #176b2c; } .miss { color: #a3122a; text-decoration: line-through; }
+    .error { color: #a3122a; }
+    pre { white-space: pre-wrap; max-width: 280px; font-size: .75rem; }
+  </style>
+</head>
+<body>
+  <h1>Etiketten-OCR Vergleich</h1>
+  <div id="device">Prüfe Gerät …</div>
+
+  <h2>1. Fotos</h2>
+  <input id="files" type="file" accept="image/*" multiple>
+  <p><small>Trag pro Foto ein, was auf dem Etikett steht. Daran wird gemessen, ob ein Modell es gelesen hat. Werte bleiben im Browser gespeichert.</small></p>
+  <div id="photos"></div>
+
+  <h2>2. Modelle</h2>
+  <div id="engines"></div>
+  <p><small>Modelle werden nacheinander geladen (beim ersten Mal Download, danach aus dem Browser-Cache) und danach wieder freigegeben.</small></p>
+
+  <button id="run">Vergleich starten</button>
+  <button id="export" class="secondary">Ergebnisse als JSON</button>
+  <div id="status"></div>
+  <div id="results"></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
