@@ -17,6 +17,12 @@ Important: do not open `index.html` directly in the browser. The React app is a 
 
 Use the Vite dev server (or `npm start`) instead of serving the repo with a generic static file server.
 
+### GitHub Codespaces
+
+Open the repo or a pull request branch with **Code → Codespaces → Create codespace**. The dev container installs dependencies, starts the Vite dev server, and opens port 5173 in a browser tab. If the tab doesn't open, use the **Ports** panel and open port 5173.
+
+Wines are stored in the browser's `localStorage`, so a new codespace starts empty. To get sample wines, use **Import / Export** and import `examples/cellar.csv` (31 wines; download it from the codespace's file explorer first).
+
 ## Production build
 
 ```bash
