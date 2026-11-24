@@ -21,7 +21,7 @@ Use the Vite dev server (or `npm start`) instead of serving the repo with a gene
 
 Open the repo or a pull request branch with **Code → Codespaces → Create codespace**. The dev container installs dependencies, starts the Vite dev server, and opens port 5173 in a browser tab. If the tab doesn't open, use the **Ports** panel and open port 5173.
 
-Wines are stored in the browser's `localStorage`, so a new codespace starts empty. To get sample wines, use **Import / Export** and import `examples/cellar.csv` (31 wines; download it from the codespace's file explorer first).
+Without a Firebase config, wines are stored in the browser's `localStorage`, so a new codespace starts empty. To get sample wines, use **Import / Export** and import `examples/cellar.csv` (31 wines; download it from the codespace's file explorer first).
 
 ## Production build
 
@@ -70,6 +70,34 @@ CSV exports use the import-compatible columns `Winery`, `Wine name`, `Vintage`, 
 When you choose a picture in the add/edit form, the app also reads it as a wine label and fills in what it recognises: wine name, producer, vintage, alcohol, wine type, region, country, and grapes. Only fields that are empty or still at their new-wine default are filled, so nothing you typed is overwritten. A status line lists the fields taken from the label, or explains that nothing could be read so you can enter the details manually.
 
 Text recognition runs entirely in the browser with [PaddleOCR.js](https://www.npmjs.com/package/@paddleocr/paddleocr-js) (PP-OCRv6 small). The photo never leaves the device. On the first scan, the OCR models (~30 MB, from PaddlePaddle's model CDN) and the ONNX Runtime WASM files (jsDelivr) are downloaded and cached by the browser. In production builds OCR runs in a Web Worker; the dev server falls back to the main thread.
+
+## Cloud sync with Firebase (optional)
+
+Without configuration the app stores everything in the browser's `localStorage` (local-only mode). When a Firebase web config is provided, a **Sign in with Google** button appears. Signed-in users keep their cellar in Firestore under `users/{uid}/wines/{wineId}` (one document per wine), so it survives clearing browser data and syncs between devices. Firestore's persistent offline cache keeps the app usable offline; changes sync once the connection is back. The status chip in the toolbar shows *Synced*, *Saving…*, or *Offline – will sync later*.
+
+On the first sign-in on a device, the wines from that browser's `localStorage` are uploaded once. Wines matching an existing cloud wine by `name`, `producer`, and `vintage` are skipped. The local copy is kept as a backup and is shown again after signing out. Label images stay client-side compressed (max. 1200 px, JPEG 0.8) and are stored inside the wine document; a wine above ~1 MB (Firestore's document limit is 1 MiB) is rejected with a message. JSON/CSV import and export work in both modes.
+
+### Setting up a Firebase project
+
+1. In the [Firebase console](https://console.firebase.google.com) create a project (Spark/free plan, Analytics not needed) and register a **Web app** (without Firebase Hosting). Note the `firebaseConfig` values.
+2. **Authentication → Sign-in method → Google**: enable. Under **Settings → Authorized domains** add `uhrigjanis.github.io` (`localhost` is already there).
+3. **Firestore Database → Create database** in production mode (location e.g. `europe-west3`, cannot be changed later). Under **Rules**, paste the contents of [`firestore.rules`](firestore.rules) and publish.
+4. Local development: copy `.env.example` to `.env.local` and fill in the values, then `npm run dev`.
+5. GitHub Pages: add the same values as repository **variables** (Settings → Secrets and variables → Actions → Variables): `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`. The deploy workflow passes them to the build.
+
+The web config is not secret, it ends up in the site's JavaScript anyway. The data is protected by the security rules: each user can only read and write their own documents.
+
+### Testing locally with the Firebase Emulator Suite
+
+The emulators need Java 21+ and run a throw-away demo project (`demo-weinkeller`), no real Firebase project or Google account required.
+
+```bash
+npm run emulators       # terminal 1: Auth (9099), Firestore (8080), Emulator UI (http://localhost:4000)
+npm run dev:emulator    # terminal 2: app at http://localhost:5173 connected to the emulators
+npm run test:rules      # security rules tests (starts and stops its own emulator)
+```
+
+In emulator mode the Google sign-in opens a fake account picker, so you can create several test users. The Emulator UI shows the Firestore documents and lets you edit or delete them to observe live sync.
 
 ## Notes on migration strategy
 
