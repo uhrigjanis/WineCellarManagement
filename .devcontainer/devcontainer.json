@@ -1,16 +1,32 @@
 {
   "name": "WineCellarManagement",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm",
-  "postCreateCommand": "npm ci",
-  "postAttachCommand": {
-    "dev-server": "npm run dev"
+  "features": {
+    // Java 21 runs the Firebase Emulator Suite (Auth + Firestore) for cloud sync testing.
+    "ghcr.io/devcontainers/features/java:1": { "version": "21" }
   },
-  "forwardPorts": [5173],
+  // Pre-fetch firebase-tools so the emulators start quickly.
+  "postCreateCommand": "npm ci && npx --yes firebase-tools@15 --version",
+  // Starts the Auth/Firestore emulators (demo project, no Firebase credentials) and the Vite dev server.
+  // The app reaches the emulators through Vite on port 5173, so only that port needs to be opened.
+  "postAttachCommand": {
+    "dev-server": "npm run dev:emulator"
+  },
+  "forwardPorts": [5173, 4000],
   "portsAttributes": {
     "5173": {
       "label": "Wine Cellar (Vite)",
       "onAutoForward": "openBrowser"
-    }
+    },
+    "4000": {
+      "label": "Firebase Emulator UI",
+      "onAutoForward": "notify"
+    },
+    "4400": { "onAutoForward": "silent" },
+    "4500": { "onAutoForward": "silent" },
+    "8080": { "label": "Firestore emulator", "onAutoForward": "silent" },
+    "9099": { "label": "Auth emulator", "onAutoForward": "silent" },
+    "9150": { "onAutoForward": "silent" }
   },
   "customizations": {
     "codespaces": {

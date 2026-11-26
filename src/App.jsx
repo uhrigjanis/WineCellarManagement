@@ -10,8 +10,8 @@ import { applyLabelSuggestions } from './labelSuggestions.js';
 import { getCountryFlagEmoji } from './countryFlag.js';
 import { transitionImportExportMenu } from './importExportMenu.js';
 import { countActiveFilters, filterWines, getWineFilterOptions } from './wineFilters.js';
-
-const STORAGE_KEY = 'weinkeller-wines-v2';
+import { useWineStorage } from './useWineStorage.js';
+import { isWineTooLarge } from './wineStore.js';
 
 const TYPE_META = {
   red: { color: '#b83232' },
@@ -131,6 +131,24 @@ const T = {
       region: 'Anbaugebiet', country: 'Land', grapes: 'Rebsorten',
     },
     requiredFieldsError: 'Bitte Pflichtfelder ausfüllen.',
+    wineTooLarge: 'Dieser Wein ist zu groß für die Cloud (max. 1 MB). Bitte ein kleineres Bild wählen.',
+    signIn: 'Mit Google anmelden',
+    signOut: 'Abmelden',
+    syncLocal: 'Nur auf diesem Gerät',
+    syncLoading: 'Lade Cloud-Keller…',
+    syncSynced: 'Synchronisiert',
+    syncPending: 'Wird gespeichert…',
+    syncOffline: 'Offline – wird später synchronisiert',
+    syncOfflineSaved: 'Offline',
+    syncEmulator: 'Emulator',
+    syncErrors: {
+      init: 'Die Cloud-Anbindung konnte nicht geladen werden. Die Weine werden nur lokal gespeichert.',
+      auth: 'Anmeldung fehlgeschlagen',
+      sync: 'Synchronisierung fehlgeschlagen',
+      save: 'Speichern in der Cloud fehlgeschlagen',
+      migration: 'Übernahme der lokalen Weine fehlgeschlagen',
+    },
+    migrated: ({ uploaded, skipped, tooLarge }) => `${uploaded} ${uploaded === 1 ? 'Wein' : 'Weine'} aus diesem Browser in die Cloud übernommen, ${skipped} ${skipped === 1 ? 'Duplikat' : 'Duplikate'} übersprungen.${tooLarge.length ? ` Zu groß (nicht übernommen): ${tooLarge.join(', ')}.` : ''}`,
   },
   en: {
     wineTypes: {
@@ -242,7 +260,33 @@ const T = {
       region: 'region', country: 'country', grapes: 'grapes',
     },
     requiredFieldsError: 'Please fill in the required fields.',
+    wineTooLarge: 'This wine is too large for cloud storage (max. 1 MB). Please choose a smaller picture.',
+    signIn: 'Sign in with Google',
+    signOut: 'Sign out',
+    syncLocal: 'This device only',
+    syncLoading: 'Loading cloud cellar…',
+    syncSynced: 'Synced',
+    syncPending: 'Saving…',
+    syncOffline: 'Offline – will sync later',
+    syncOfflineSaved: 'Offline',
+    syncEmulator: 'Emulator',
+    syncErrors: {
+      init: 'Cloud sync could not be loaded. Wines are stored on this device only.',
+      auth: 'Sign-in failed',
+      sync: 'Sync failed',
+      save: 'Saving to the cloud failed',
+      migration: 'Moving the local wines to the cloud failed',
+    },
+    migrated: ({ uploaded, skipped, tooLarge }) => `${uploaded} ${uploaded === 1 ? 'wine' : 'wines'} from this browser moved to the cloud, ${skipped} ${skipped === 1 ? 'duplicate' : 'duplicates'} skipped.${tooLarge.length ? ` Too large (not moved): ${tooLarge.join(', ')}.` : ''}`,
   },
+};
+
+const getSyncLabel = (t, cloud) => {
+  const { status } = cloud;
+  if (status.mode === 'local') return t.syncLocal;
+  if (status.loading) return t.syncLoading;
+  if (status.fromCache) return status.pending ? t.syncOffline : t.syncOfflineSaved;
+  return status.pending ? t.syncPending : t.syncSynced;
 };
 
 const sortOptions = {
@@ -295,19 +339,8 @@ function CountryFlag({ country }) {
 
 function App() {
   const [lang, setLang] = useState('de');
-  const [wines, setWines] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      return [];
-    }
-
-    try {
-      const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [syncFeedback, setSyncFeedback] = useState(null);
+  const { wines, setWines, cloud } = useWineStorage({ createId, onMigrated: setSyncFeedback });
   const [tab, setTab] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
   const [selectedExportIds, setSelectedExportIds] = useState([]);
@@ -383,10 +416,6 @@ function App() {
       })
       : null
   ), [csvDraft, wines]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(wines));
-  }, [wines]);
 
   const cellarWines = useMemo(() => wines.filter((wine) => wine.qty > 0), [wines]);
   const archiveWines = useMemo(() => wines.filter((wine) => wine.qty <= 0), [wines]);
@@ -504,6 +533,11 @@ function App() {
     const validationError = getWineFormError(cleaned);
     if (validationError) {
       setFormError(`${t.requiredFieldsError} ${validationError}`);
+      return;
+    }
+
+    if (cloud.status.mode === 'cloud' && isWineTooLarge(cleaned)) {
+      setFormError(t.wineTooLarge);
       return;
     }
 
@@ -754,6 +788,30 @@ function App() {
           <h1>{tab === 0 ? t.navCellar : t.archiveTitle}</h1>
         </div>
         <div className="toolbar">
+          {cloud.available && (
+            <div className="account" data-sync-mode={cloud.status.mode}>
+              <span
+                className={`sync-status ${cloud.status.mode}${cloud.status.pending ? ' pending' : ''}${cloud.status.fromCache ? ' offline' : ''}`}
+                role="status"
+                data-testid="sync-status"
+              >
+                {cloud.emulator && <span className="sync-badge">{t.syncEmulator}</span>}
+                {getSyncLabel(t, cloud)}
+              </span>
+              {cloud.user ? (
+                <>
+                  <span className="account-name" title={cloud.user.email || ''}>
+                    {cloud.user.displayName || cloud.user.email}
+                  </span>
+                  <button className="ghost-button" type="button" onClick={cloud.signOut}>{t.signOut}</button>
+                </>
+              ) : (
+                <button className="ghost-button" type="button" onClick={cloud.signIn} disabled={!cloud.ready}>
+                  {t.signIn}
+                </button>
+              )}
+            </div>
+          )}
           <button className="ghost-button" onClick={() => setLang((current) => (current === 'de' ? 'en' : 'de'))}>
             {lang === 'de' ? 'EN' : 'DE'}
           </button>
@@ -846,6 +904,25 @@ function App() {
           <button className="primary-button" onClick={openAddModal}>{t.addWine}</button>
         </div>
       </header>
+
+      {cloud.error && (
+        <div className="import-feedback error" role="alert">
+          <span>
+            {t.syncErrors[cloud.error.kind]}
+            {cloud.error.kind !== 'init' && `: ${cloud.error.error?.code === 'wine/too-large'
+              ? t.wineTooLarge
+              : cloud.error.error?.code || cloud.error.error?.message || ''}`}
+          </span>
+          <button className="feedback-close" type="button" onClick={cloud.clearError} aria-label={t.close}>×</button>
+        </div>
+      )}
+
+      {syncFeedback && (
+        <div className="import-feedback success" role="status">
+          <span>{t.migrated(syncFeedback)}</span>
+          <button className="feedback-close" type="button" onClick={() => setSyncFeedback(null)} aria-label={t.close}>×</button>
+        </div>
+      )}
 
       {importFeedback && (
         <div className={`import-feedback ${importFeedback.kind}`} role="status">
