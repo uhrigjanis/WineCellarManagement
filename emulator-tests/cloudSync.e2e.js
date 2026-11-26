@@ -73,9 +73,11 @@ test('sign-in migrates local wines to Firestore and remote changes sync back', {
   const signInButton = page.getByRole('button', { name: 'Mit Google anmelden' });
   await assert.doesNotReject(signInButton.waitFor());
   const [popup] = await Promise.all([page.waitForEvent('popup'), signInButton.click()]);
-  await popup.getByText('Add new account').click();
-  await popup.getByText('Auto-generate user information').click();
-  await popup.getByText('Sign in with Google.com').click();
+  // The emulator page keeps hidden copies of its buttons in the DOM, so only act on visible ones.
+  const visible = (locator) => locator.filter({ visible: true }).first();
+  await visible(popup.getByText('Add new account')).click();
+  await visible(popup.getByText('Auto-generate user information')).click();
+  await visible(popup.getByText('Sign in with Google.com')).click();
 
   await page.getByText(/2 Weine aus diesem Browser in die Cloud übernommen, 0 Duplikate übersprungen/).waitFor();
   await page.getByTestId('sync-status').getByText('Synchronisiert').waitFor();
