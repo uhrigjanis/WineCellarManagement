@@ -19,9 +19,11 @@ Use the Vite dev server (or `npm start`) instead of serving the repo with a gene
 
 ### GitHub Codespaces
 
-Open the repo or a pull request branch with **Code → Codespaces → Create codespace**. The dev container installs dependencies, starts the Vite dev server, and opens port 5173 in a browser tab. If the tab doesn't open, use the **Ports** panel and open port 5173.
+Open the repo or a pull request branch with **Code → Codespaces → Create codespace**. The dev container installs dependencies and Java 21. It then starts the Firebase emulators (Auth + Firestore, demo project, no credentials needed) together with the Vite dev server (`npm run dev:emulator`) and opens port 5173 in a browser tab. If the tab doesn't open, use the **Ports** panel and open port 5173. The first start takes a minute while the emulators download.
 
-Without a Firebase config, wines are stored in the browser's `localStorage`, so a new codespace starts empty. To get sample wines, use **Import / Export** and import `examples/cellar.csv` (31 wines; download it from the codespace's file explorer first).
+The app reaches the emulators through the Vite dev server, so only port 5173 needs to be open, and it can stay private. **Sign in with Google** opens the emulator's fake account picker, so no real Google account is used. The status chip shows an *Emulator* badge. The emulator data is discarded when the dev server stops. To get sample wines, use **Import / Export** and import `examples/cellar.csv` (31 wines; download it from the codespace's file explorer first). Import before signing in to test the migration, or after signing in to write directly to the cloud cellar.
+
+For plain local-only mode without Firebase, stop the dev server and run `npm run dev` instead.
 
 ## Production build
 
@@ -89,15 +91,15 @@ The web config is not secret, it ends up in the site's JavaScript anyway. The da
 
 ### Testing locally with the Firebase Emulator Suite
 
-The emulators need Java 21+ and run a throw-away demo project (`demo-weinkeller`), no real Firebase project or Google account required.
+The emulators need Java 21+ and run a throw-away demo project (`demo-weinkeller`), no real Firebase project or Google account required. GitHub Codespaces already has everything set up (see above).
 
 ```bash
-npm run emulators       # terminal 1: Auth (9099), Firestore (8080), Emulator UI (http://localhost:4000)
-npm run dev:emulator    # terminal 2: app at http://localhost:5173 connected to the emulators
-npm run test:rules      # security rules tests (starts and stops its own emulator)
+npm run dev:emulator      # Auth + Firestore emulators, Emulator UI (port 4000) and the app (http://localhost:5173)
+npm run test:rules        # security rules tests (starts and stops its own emulator)
+npm run test:e2e          # browser test: sign-in, migration, live sync (needs `npx playwright install chromium`)
 ```
 
-In emulator mode the Google sign-in opens a fake account picker, so you can create several test users. The Emulator UI shows the Firestore documents and lets you edit or delete them to observe live sync.
+In emulator mode the Google sign-in opens a fake account picker, so you can create several test users. The Emulator UI shows the Firestore documents and lets you edit or delete them to observe live sync. The app talks to the emulators through the Vite dev server (see `vite.config.js`), which also makes `http://<your-LAN-IP>:5173` work on a phone. If the emulators are already running separately (`npm run emulators`), start only the app with `npm run dev:app-emulator`. To keep emulator data between runs, use `npm run emulators -- --import=.emulator-data --export-on-exit`.
 
 ## Notes on migration strategy
 

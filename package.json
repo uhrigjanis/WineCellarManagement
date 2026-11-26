@@ -10,9 +10,11 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test",
-    "dev:emulator": "vite --host 0.0.0.0 --mode emulator",
+    "dev:emulator": "npx --yes firebase-tools@15 emulators:exec --ui --project demo-weinkeller \"vite --host 0.0.0.0 --mode emulator\"",
     "emulators": "npx --yes firebase-tools@15 emulators:start --project demo-weinkeller",
-    "test:rules": "npx --yes firebase-tools@15 emulators:exec --only firestore --project demo-weinkeller-rules \"node --test emulator-tests/firestore.rules.spec.js\""
+    "test:rules": "npx --yes firebase-tools@15 emulators:exec --only firestore --project demo-weinkeller-rules \"node --test emulator-tests/firestore.rules.spec.js\"",
+    "dev:app-emulator": "vite --host 0.0.0.0 --mode emulator",
+    "test:e2e": "npx --yes firebase-tools@15 emulators:exec --only auth,firestore --project demo-weinkeller \"node --test emulator-tests/cloudSync.e2e.js\""
   },
   "dependencies": {
     "@paddleocr/paddleocr-js": "^0.4.2",
@@ -23,6 +25,7 @@
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "playwright": "^1.65.1",
     "vite": "^6.4.6"
   }
 }

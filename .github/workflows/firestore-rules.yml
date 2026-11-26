@@ -1,4 +1,4 @@
-name: Firestore security rules
+name: Firestore rules and cloud sync
 
 on:
   pull_request:
@@ -6,7 +6,9 @@ on:
       - "firestore.rules"
       - "firebase.json"
       - "emulator-tests/**"
-      - "src/wineStore.js"
+      - "src/**"
+      - "vite.config.js"
+      - ".env.emulator"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/firestore-rules.yml"
@@ -44,3 +46,9 @@ jobs:
 
       - name: Security rules tests (Firestore emulator)
         run: npm run test:rules
+
+      - name: Install Chromium for the end-to-end test
+        run: npx playwright install --with-deps chromium
+
+      - name: Cloud sync end-to-end test (emulators + Vite proxy + browser)
+        run: npm run test:e2e

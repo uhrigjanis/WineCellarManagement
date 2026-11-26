@@ -35,15 +35,26 @@ export function initFirebase({ config, emulator }) {
   const auth = getAuth(app);
 
   // Offline-first: Firestore keeps an IndexedDB cache, shared between tabs, and syncs when back online.
-  const db = initializeFirestore(app, {
+  const firestoreSettings = {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-  });
+  };
 
-  if (emulator) {
-    // Default to the host the page was loaded from, so a phone on the same network reaches the emulator.
-    const host = emulator.host || window.location.hostname || '127.0.0.1';
-    connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
-    connectFirestoreEmulator(db, host, 8080);
+  // Emulator without an explicit host: reach the emulators through the dev server's proxy on the page's
+  // own origin (see vite.config.js). That keeps HTTPS pages (GitHub Codespaces) free of mixed content.
+  const sameOriginEmulator = Boolean(emulator) && !emulator.host;
+  if (sameOriginEmulator) {
+    firestoreSettings.host = window.location.host;
+    firestoreSettings.ssl = window.location.protocol === 'https:';
+  }
+
+  const db = initializeFirestore(app, firestoreSettings);
+
+  if (sameOriginEmulator) {
+    connectAuthEmulator(auth, window.location.origin, { disableWarnings: true });
+  } else if (emulator) {
+    // Direct connection to the emulator ports on VITE_FIREBASE_EMULATOR_HOST.
+    connectAuthEmulator(auth, `http://${emulator.host}:9099`, { disableWarnings: true });
+    connectFirestoreEmulator(db, emulator.host, 8080);
   }
 
   const api = { collection, doc, getDocs, getDocsFromServer, onSnapshot, writeBatch };
