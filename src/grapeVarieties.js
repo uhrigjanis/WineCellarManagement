@@ -1,4 +1,5 @@
 import { normalize } from './normalizeText.js';
+import { cleanName, rankSuggestions, uniqueBy } from './suggest.js';
 
 // [name, colour, aliases] — shared by the label scanner and the grape autocomplete.
 export const GRAPES = [
@@ -35,43 +36,12 @@ function otherTerms(name) {
   return [
     ...(ALIASES.get(name) || []),
     ...synonyms.filter((other) => other !== name).flatMap((other) => [other, ...(ALIASES.get(other) || [])]),
-  ].map(normalize);
-}
-
-const startsAWord = (term, query) => term.startsWith(query) || term.includes(` ${query}`);
-
-// 0: name starts with the query, 1: a later word of the name does, 2: name contains it,
-// 3: an alias/synonym starts with it (or a word of it), 4: an alias/synonym contains it.
-function rank(name, query) {
-  const term = normalize(name);
-  if (term.startsWith(query)) return 0;
-  if (term.includes(` ${query}`)) return 1;
-  if (term.includes(query)) return 2;
-  const others = otherTerms(name);
-  if (others.some((other) => startsAWord(other, query))) return 3;
-  if (others.some((other) => other.includes(query))) return 4;
-  return -1;
+  ];
 }
 
 // Grape names to offer while typing `query`, best match first. `knownGrapes` are names already used in
 // the cellar; spellings that only differ in case/accents/spacing from a listed grape are merged into it.
-export function suggestGrapes(query, knownGrapes = [], { limit = 8 } = {}) {
-  const needle = normalize(query);
-  if (!needle) return [];
-
-  const candidates = new Map();
-  for (const name of [...GRAPES.map(([grape]) => grape), ...knownGrapes]) {
-    const clean = String(name ?? '').replace(/\s+/g, ' ').trim();
-    const key = normalize(clean);
-    if (key && !candidates.has(key)) candidates.set(key, clean);
-  }
-
-  const typed = String(query).trim();
-  return [...candidates.values()]
-    .filter((name) => name !== typed)
-    .map((name) => ({ name, score: rank(name, needle) }))
-    .filter(({ score }) => score >= 0)
-    .sort((left, right) => left.score - right.score || left.name.localeCompare(right.name, 'de'))
-    .slice(0, limit)
-    .map(({ name }) => name);
+export function suggestGrapes(query, knownGrapes = [], options) {
+  const names = uniqueBy([...GRAPES.map(([grape]) => grape), ...knownGrapes].map(cleanName), normalize);
+  return rankSuggestions(query, names.map((name) => ({ name, aliases: otherTerms(name) })), options);
 }

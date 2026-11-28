@@ -3,8 +3,11 @@
 // Output: only the fields that were recognised, e.g. { vintage: 2019, region: 'Nahe' }.
 
 import { GRAPES } from './grapeVarieties.js';
+import { REGIONS } from './wineOrigins.js';
 import { normalize } from './normalizeText.js';
 
+// Words that name a country on a label. Deliberately narrower than wineOrigins' COUNTRIES, whose extra
+// names ("Georgia", "UK", …) would give false hits in label text.
 const COUNTRIES = [
   ['Deutschland', ['deutschland', 'germany', 'allemagne', 'germania']],
   ['Frankreich', ['france', 'frankreich', 'francia']],
@@ -19,39 +22,6 @@ const COUNTRIES = [
   ['Südafrika', ['south africa', 'sudafrika']],
   ['Argentinien', ['argentina', 'argentinien']],
   ['Chile', ['chile']],
-];
-
-// [label text, country]
-const REGIONS = [
-  ['Mosel', 'Deutschland'], ['Rheingau', 'Deutschland'], ['Rheinhessen', 'Deutschland'], ['Pfalz', 'Deutschland'],
-  ['Nahe', 'Deutschland'], ['Baden', 'Deutschland'], ['Württemberg', 'Deutschland'], ['Franken', 'Deutschland'],
-  ['Ahr', 'Deutschland'], ['Mittelrhein', 'Deutschland'], ['Saale-Unstrut', 'Deutschland'], ['Sachsen', 'Deutschland'],
-  ['Hessische Bergstraße', 'Deutschland'],
-  ['Bordeaux', 'Frankreich'], ['Margaux', 'Frankreich'], ['Pauillac', 'Frankreich'], ['Saint-Julien', 'Frankreich'],
-  ['Saint-Estèphe', 'Frankreich'], ['Saint-Émilion', 'Frankreich'], ['Pomerol', 'Frankreich'], ['Pessac-Léognan', 'Frankreich'],
-  ['Sauternes', 'Frankreich'], ['Médoc', 'Frankreich'], ['Haut-Médoc', 'Frankreich'], ['Graves', 'Frankreich'],
-  ['Bourgogne', 'Frankreich'], ['Burgundy', 'Frankreich'], ['Chablis', 'Frankreich'], ['Beaune', 'Frankreich'],
-  ['Meursault', 'Frankreich'], ['Pommard', 'Frankreich'], ['Gevrey-Chambertin', 'Frankreich'], ['Nuits-Saint-Georges', 'Frankreich'],
-  ['Puligny-Montrachet', 'Frankreich'], ['Chassagne-Montrachet', 'Frankreich'], ['Beaujolais', 'Frankreich'],
-  ['Champagne', 'Frankreich'], ['Alsace', 'Frankreich'], ['Elsass', 'Frankreich'], ['Loire', 'Frankreich'],
-  ['Sancerre', 'Frankreich'], ['Vouvray', 'Frankreich'], ['Côtes du Rhône', 'Frankreich'], ['Rhône', 'Frankreich'],
-  ['Châteauneuf-du-Pape', 'Frankreich'], ['Hermitage', 'Frankreich'], ['Côte-Rôtie', 'Frankreich'], ['Provence', 'Frankreich'],
-  ['Languedoc', 'Frankreich'], ['Roussillon', 'Frankreich'],
-  ['Toscana', 'Italien'], ['Tuscany', 'Italien'], ['Chianti Classico', 'Italien'], ['Chianti', 'Italien'],
-  ['Brunello di Montalcino', 'Italien'], ['Montalcino', 'Italien'], ['Bolgheri', 'Italien'], ['Montepulciano', 'Italien'],
-  ['Piemonte', 'Italien'], ['Barolo', 'Italien'], ['Barbaresco', 'Italien'], ['Langhe', 'Italien'],
-  ['Veneto', 'Italien'], ['Valpolicella', 'Italien'], ['Amarone', 'Italien'], ['Soave', 'Italien'],
-  ['Alto Adige', 'Italien'], ['Südtirol', 'Italien'], ['Trentino', 'Italien'], ['Friuli', 'Italien'],
-  ['Sicilia', 'Italien'], ['Puglia', 'Italien'], ['Abruzzo', 'Italien'], ['Franciacorta', 'Italien'],
-  ['Rioja', 'Spanien'], ['Ribera del Duero', 'Spanien'], ['Priorat', 'Spanien'], ['Rías Baixas', 'Spanien'],
-  ['Rueda', 'Spanien'], ['Toro', 'Spanien'], ['Jerez', 'Spanien'], ['Penedès', 'Spanien'],
-  ['Wachau', 'Österreich'], ['Kamptal', 'Österreich'], ['Kremstal', 'Österreich'], ['Burgenland', 'Österreich'],
-  ['Steiermark', 'Österreich'], ['Weinviertel', 'Österreich'],
-  ['Douro', 'Portugal'], ['Alentejo', 'Portugal'], ['Dão', 'Portugal'], ['Vinho Verde', 'Portugal'],
-  ['Napa Valley', 'USA'], ['Sonoma', 'USA'], ['Willamette Valley', 'USA'],
-  ['Barossa Valley', 'Australien'], ['Barossa', 'Australien'], ['McLaren Vale', 'Australien'], ['Margaret River', 'Australien'],
-  ['Marlborough', 'Neuseeland'], ['Central Otago', 'Neuseeland'],
-  ['Stellenbosch', 'Südafrika'], ['Mendoza', 'Argentinien'], ['Maipo', 'Chile'], ['Colchagua', 'Chile'],
 ];
 
 const TYPE_WORDS = [

@@ -10,7 +10,9 @@ import { applyLabelSuggestions } from './labelSuggestions.js';
 import { getCountryFlagEmoji } from './countryFlag.js';
 import { transitionImportExportMenu } from './importExportMenu.js';
 import { countActiveFilters, filterWines, getWineFilterOptions } from './wineFilters.js';
-import { GrapeInput } from './GrapeInput.jsx';
+import { AutocompleteInput } from './AutocompleteInput.jsx';
+import { suggestGrapes } from './grapeVarieties.js';
+import { regionCountry, regionCountryMismatch, suggestCountries, suggestRegions } from './wineOrigins.js';
 
 const STORAGE_KEY = 'weinkeller-wines-v2';
 
@@ -99,6 +101,10 @@ const T = {
     drinkUntil: 'Trinken bis',
     grapes: 'Rebsorten',
     grapeSuggestions: 'Rebsorten-Vorschläge',
+    countrySuggestions: 'Länder-Vorschläge',
+    regionSuggestions: 'Anbaugebiet-Vorschläge',
+    regionCountryHint: (region, country) => `${region} liegt in ${country}.`,
+    useCountry: (country) => `Land auf ${country} setzen`,
     notes: 'Notizen',
     rating: 'Bewertung',
     sort: 'Sortieren',
@@ -211,6 +217,10 @@ const T = {
     drinkUntil: 'Drink until',
     grapes: 'Grapes',
     grapeSuggestions: 'Grape suggestions',
+    countrySuggestions: 'Country suggestions',
+    regionSuggestions: 'Region suggestions',
+    regionCountryHint: (region, country) => `${region} is in ${country}.`,
+    useCountry: (country) => `Set country to ${country}`,
     notes: 'Notes',
     rating: 'Rating',
     sort: 'Sort',
@@ -394,6 +404,7 @@ function App() {
   const cellarWines = useMemo(() => wines.filter((wine) => wine.qty > 0), [wines]);
   const archiveWines = useMemo(() => wines.filter((wine) => wine.qty <= 0), [wines]);
   const filterOptions = useMemo(() => getWineFilterOptions(wines), [wines]);
+  const knownOrigins = useMemo(() => wines.map(({ region, country }) => ({ region, country })), [wines]);
 
   const visibleList = useMemo(() => {
     const list = filterWines(tab === 0 ? cellarWines : archiveWines, {
@@ -732,6 +743,16 @@ function App() {
       return { ...current, grapes };
     });
   };
+
+  // Picking a region also fills in its country, but never overwrites one that is already set.
+  const selectRegion = (region) => {
+    setForm((current) => ({
+      ...current,
+      region,
+      country: String(current.country || '').trim() ? current.country : regionCountry(region, knownOrigins, { lang }),
+    }));
+  };
+  const regionHintCountry = regionCountryMismatch(form.region, form.country, knownOrigins, { lang });
 
   const addGrapeRow = () => {
     setForm((current) => ({
@@ -1310,17 +1331,41 @@ function App() {
                   </select>
                 </label>
                 <label>
-                  <span>{t.country}</span>
+                  <span id="wine-country-label">{t.country}</span>
                   <div className="country-input-wrap">
                     <CountryFlag country={form.country} />
-                    <input value={form.country || ''} onChange={(event) => updateForm('country', event.target.value)} />
+                    <AutocompleteInput
+                      aria-labelledby="wine-country-label"
+                      value={form.country || ''}
+                      onChange={(value) => updateForm('country', value)}
+                      suggest={(value) => suggestCountries(value, filterOptions.country, { lang })}
+                      renderOption={(name) => <><CountryFlag country={name} />{name}</>}
+                      listLabel={t.countrySuggestions}
+                    />
                   </div>
                 </label>
               </div>
               <div className="two-column">
                 <label>
-                  <span>{t.region}</span>
-                  <input required value={form.region || ''} onChange={(event) => updateForm('region', event.target.value)} />
+                  <span id="wine-region-label">{t.region}</span>
+                  <AutocompleteInput
+                    required
+                    aria-labelledby="wine-region-label"
+                    aria-describedby={regionHintCountry ? 'wine-region-hint' : undefined}
+                    value={form.region || ''}
+                    onChange={(value) => updateForm('region', value)}
+                    onSelect={selectRegion}
+                    suggest={(value) => suggestRegions(value, form.country, knownOrigins)}
+                    listLabel={t.regionSuggestions}
+                  />
+                  {regionHintCountry && (
+                    <small id="wine-region-hint" className="field-hint">
+                      {t.regionCountryHint(form.region.trim(), regionHintCountry)}{' '}
+                      <button type="button" className="text-button" onClick={() => updateForm('country', regionHintCountry)}>
+                        {t.useCountry(regionHintCountry)}
+                      </button>
+                    </small>
+                  )}
                 </label>
                 <label>
                   <span>{t.cellar}</span>
@@ -1352,11 +1397,11 @@ function App() {
                 <label>{t.grapes}</label>
                 {(form.grapes || [createGrape()]).map((grape, index) => (
                   <div className="grape-row" key={grape.id || index}>
-                    <GrapeInput
+                    <AutocompleteInput
                       value={grape.name || ''}
                       placeholder={t.grapes}
                       listLabel={t.grapeSuggestions}
-                      knownGrapes={filterOptions.grape}
+                      suggest={(value) => suggestGrapes(value, filterOptions.grape)}
                       onChange={(value) => updateGrape(index, 'name', value)}
                     />
                     <input value={grape.pct || ''} placeholder="%" onChange={(event) => updateGrape(index, 'pct', event.target.value)} />

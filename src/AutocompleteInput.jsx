@@ -1,16 +1,16 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { suggestGrapes } from './grapeVarieties.js';
+import { useEffect, useId, useRef, useState } from 'react';
 
-// Text input for a grape name with a suggestion list (ARIA combobox). Free text is always kept.
-export function GrapeInput({ value, onChange, knownGrapes, placeholder, listLabel }) {
+// Text input with a suggestion list (ARIA combobox). `suggest(value)` returns the names to offer;
+// picking one calls `onSelect` (default: `onChange`). Free text is always kept.
+export function AutocompleteInput({ value, onChange, onSelect = onChange, suggest, renderOption = (name) => name, listLabel, ...inputProps }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
-  const suggestions = useMemo(() => suggestGrapes(value, knownGrapes), [value, knownGrapes]);
+  const suggestions = open ? suggest(value) : [];
   const expanded = open && suggestions.length > 0;
   const listRef = useRef(null);
 
-  // The grape rows sit at the bottom of the scrollable form: bring the opened list into view.
+  // Fields near the bottom of the scrollable form: bring the opened list into view.
   useEffect(() => {
     if (expanded) listRef.current?.scrollIntoView?.({ block: 'nearest' });
   }, [expanded]);
@@ -21,16 +21,17 @@ export function GrapeInput({ value, onChange, knownGrapes, placeholder, listLabe
   };
 
   const choose = (name) => {
-    onChange(name);
+    onSelect(name);
     close();
   };
 
   const handleKeyDown = (event) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      if (!suggestions.length) return;
+      const options = expanded ? suggestions : suggest(value);
+      if (!options.length) return;
       event.preventDefault();
       const step = event.key === 'ArrowDown' ? 1 : -1;
-      const count = suggestions.length;
+      const count = options.length;
       setOpen(true);
       setActive((current) => (
         !expanded || current < 0 ? (step > 0 ? 0 : count - 1) : (current + step + count) % count
@@ -46,10 +47,10 @@ export function GrapeInput({ value, onChange, knownGrapes, placeholder, listLabe
   };
 
   return (
-    <div className="grape-input">
+    <div className="autocomplete">
       <input
+        {...inputProps}
         value={value}
-        placeholder={placeholder}
         autoComplete="off"
         role="combobox"
         aria-autocomplete="list"
@@ -65,7 +66,7 @@ export function GrapeInput({ value, onChange, knownGrapes, placeholder, listLabe
         onBlur={close}
       />
       {expanded && (
-        <ul ref={listRef} className="grape-suggestions" id={listId} role="listbox" aria-label={listLabel}>
+        <ul ref={listRef} className="autocomplete-list" id={listId} role="listbox" aria-label={listLabel}>
           {suggestions.map((name, index) => (
             <li
               key={name}
@@ -77,7 +78,7 @@ export function GrapeInput({ value, onChange, knownGrapes, placeholder, listLabe
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => choose(name)}
             >
-              {name}
+              {renderOption(name)}
             </li>
           ))}
         </ul>
