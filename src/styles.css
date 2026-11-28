@@ -1072,6 +1072,38 @@ h1 {
   gap: 10px;
 }
 
+.grape-input {
+  position: relative;
+}
+
+.grape-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.grape-suggestions li {
+  padding: 12px;
+  border-radius: 8px;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.grape-suggestions li:hover,
+.grape-suggestions li.active {
+  background: rgba(184, 50, 50, 0.08);
+  color: var(--primary-dark);
+}
+
 .picture-field {
   display: grid;
   gap: 8px;

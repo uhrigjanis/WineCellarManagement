@@ -10,6 +10,7 @@ import { applyLabelSuggestions } from './labelSuggestions.js';
 import { getCountryFlagEmoji } from './countryFlag.js';
 import { transitionImportExportMenu } from './importExportMenu.js';
 import { countActiveFilters, filterWines, getWineFilterOptions } from './wineFilters.js';
+import { GrapeInput } from './GrapeInput.jsx';
 
 const STORAGE_KEY = 'weinkeller-wines-v2';
 
@@ -97,6 +98,7 @@ const T = {
     drinkFrom: 'Bereit ab',
     drinkUntil: 'Trinken bis',
     grapes: 'Rebsorten',
+    grapeSuggestions: 'Rebsorten-Vorschläge',
     notes: 'Notizen',
     rating: 'Bewertung',
     sort: 'Sortieren',
@@ -208,6 +210,7 @@ const T = {
     drinkFrom: 'Drink from',
     drinkUntil: 'Drink until',
     grapes: 'Grapes',
+    grapeSuggestions: 'Grape suggestions',
     notes: 'Notes',
     rating: 'Rating',
     sort: 'Sort',
@@ -1349,7 +1352,13 @@ function App() {
                 <label>{t.grapes}</label>
                 {(form.grapes || [createGrape()]).map((grape, index) => (
                   <div className="grape-row" key={grape.id || index}>
-                    <input value={grape.name || ''} placeholder={t.grapes} onChange={(event) => updateGrape(index, 'name', event.target.value)} />
+                    <GrapeInput
+                      value={grape.name || ''}
+                      placeholder={t.grapes}
+                      listLabel={t.grapeSuggestions}
+                      knownGrapes={filterOptions.grape}
+                      onChange={(value) => updateGrape(index, 'name', value)}
+                    />
                     <input value={grape.pct || ''} placeholder="%" onChange={(event) => updateGrape(index, 'pct', event.target.value)} />
                   </div>
                 ))}
