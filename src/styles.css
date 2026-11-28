@@ -1072,6 +1072,67 @@ h1 {
   gap: 10px;
 }
 
+.autocomplete {
+  position: relative;
+}
+
+.autocomplete-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.autocomplete-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  color: #0f172a;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.autocomplete-list li:hover,
+.autocomplete-list li.active {
+  background: rgba(184, 50, 50, 0.08);
+  color: var(--primary-dark);
+}
+
+/* In the bordered country box the list lines up with the box, not with the input inside it. */
+.country-input-wrap {
+  position: relative;
+}
+
+.country-input-wrap .autocomplete {
+  position: static;
+  flex: 1;
+  min-width: 0;
+}
+
+/* A hint under one field must not stretch the field next to it. */
+.two-column:has(.field-hint) > label {
+  align-content: start;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.field-hint .text-button {
+  padding: 0;
+}
+
 .picture-field {
   display: grid;
   gap: 8px;

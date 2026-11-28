@@ -2,6 +2,12 @@
 // Input: [{ text, height }] in reading order (height = text size in px, optional).
 // Output: only the fields that were recognised, e.g. { vintage: 2019, region: 'Nahe' }.
 
+import { GRAPES } from './grapeVarieties.js';
+import { REGIONS } from './wineOrigins.js';
+import { normalize } from './normalizeText.js';
+
+// Words that name a country on a label. Deliberately narrower than wineOrigins' COUNTRIES, whose extra
+// names ("Georgia", "UK", …) would give false hits in label text.
 const COUNTRIES = [
   ['Deutschland', ['deutschland', 'germany', 'allemagne', 'germania']],
   ['Frankreich', ['france', 'frankreich', 'francia']],
@@ -18,54 +24,6 @@ const COUNTRIES = [
   ['Chile', ['chile']],
 ];
 
-// [label text, country]
-const REGIONS = [
-  ['Mosel', 'Deutschland'], ['Rheingau', 'Deutschland'], ['Rheinhessen', 'Deutschland'], ['Pfalz', 'Deutschland'],
-  ['Nahe', 'Deutschland'], ['Baden', 'Deutschland'], ['Württemberg', 'Deutschland'], ['Franken', 'Deutschland'],
-  ['Ahr', 'Deutschland'], ['Mittelrhein', 'Deutschland'], ['Saale-Unstrut', 'Deutschland'], ['Sachsen', 'Deutschland'],
-  ['Hessische Bergstraße', 'Deutschland'],
-  ['Bordeaux', 'Frankreich'], ['Margaux', 'Frankreich'], ['Pauillac', 'Frankreich'], ['Saint-Julien', 'Frankreich'],
-  ['Saint-Estèphe', 'Frankreich'], ['Saint-Émilion', 'Frankreich'], ['Pomerol', 'Frankreich'], ['Pessac-Léognan', 'Frankreich'],
-  ['Sauternes', 'Frankreich'], ['Médoc', 'Frankreich'], ['Haut-Médoc', 'Frankreich'], ['Graves', 'Frankreich'],
-  ['Bourgogne', 'Frankreich'], ['Burgundy', 'Frankreich'], ['Chablis', 'Frankreich'], ['Beaune', 'Frankreich'],
-  ['Meursault', 'Frankreich'], ['Pommard', 'Frankreich'], ['Gevrey-Chambertin', 'Frankreich'], ['Nuits-Saint-Georges', 'Frankreich'],
-  ['Puligny-Montrachet', 'Frankreich'], ['Chassagne-Montrachet', 'Frankreich'], ['Beaujolais', 'Frankreich'],
-  ['Champagne', 'Frankreich'], ['Alsace', 'Frankreich'], ['Elsass', 'Frankreich'], ['Loire', 'Frankreich'],
-  ['Sancerre', 'Frankreich'], ['Vouvray', 'Frankreich'], ['Côtes du Rhône', 'Frankreich'], ['Rhône', 'Frankreich'],
-  ['Châteauneuf-du-Pape', 'Frankreich'], ['Hermitage', 'Frankreich'], ['Côte-Rôtie', 'Frankreich'], ['Provence', 'Frankreich'],
-  ['Languedoc', 'Frankreich'], ['Roussillon', 'Frankreich'],
-  ['Toscana', 'Italien'], ['Tuscany', 'Italien'], ['Chianti Classico', 'Italien'], ['Chianti', 'Italien'],
-  ['Brunello di Montalcino', 'Italien'], ['Montalcino', 'Italien'], ['Bolgheri', 'Italien'], ['Montepulciano', 'Italien'],
-  ['Piemonte', 'Italien'], ['Barolo', 'Italien'], ['Barbaresco', 'Italien'], ['Langhe', 'Italien'],
-  ['Veneto', 'Italien'], ['Valpolicella', 'Italien'], ['Amarone', 'Italien'], ['Soave', 'Italien'],
-  ['Alto Adige', 'Italien'], ['Südtirol', 'Italien'], ['Trentino', 'Italien'], ['Friuli', 'Italien'],
-  ['Sicilia', 'Italien'], ['Puglia', 'Italien'], ['Abruzzo', 'Italien'], ['Franciacorta', 'Italien'],
-  ['Rioja', 'Spanien'], ['Ribera del Duero', 'Spanien'], ['Priorat', 'Spanien'], ['Rías Baixas', 'Spanien'],
-  ['Rueda', 'Spanien'], ['Toro', 'Spanien'], ['Jerez', 'Spanien'], ['Penedès', 'Spanien'],
-  ['Wachau', 'Österreich'], ['Kamptal', 'Österreich'], ['Kremstal', 'Österreich'], ['Burgenland', 'Österreich'],
-  ['Steiermark', 'Österreich'], ['Weinviertel', 'Österreich'],
-  ['Douro', 'Portugal'], ['Alentejo', 'Portugal'], ['Dão', 'Portugal'], ['Vinho Verde', 'Portugal'],
-  ['Napa Valley', 'USA'], ['Sonoma', 'USA'], ['Willamette Valley', 'USA'],
-  ['Barossa Valley', 'Australien'], ['Barossa', 'Australien'], ['McLaren Vale', 'Australien'], ['Margaret River', 'Australien'],
-  ['Marlborough', 'Neuseeland'], ['Central Otago', 'Neuseeland'],
-  ['Stellenbosch', 'Südafrika'], ['Mendoza', 'Argentinien'], ['Maipo', 'Chile'], ['Colchagua', 'Chile'],
-];
-
-// [name, colour, aliases]
-const GRAPES = [
-  ['Riesling', 'white'], ['Chardonnay', 'white'], ['Sauvignon Blanc', 'white'], ['Grüner Veltliner', 'white'],
-  ['Silvaner', 'white', ['sylvaner']], ['Müller-Thurgau', 'white', ['muller thurgau']], ['Grauburgunder', 'white'],
-  ['Weißburgunder', 'white', ['weissburgunder']], ['Pinot Grigio', 'white'], ['Pinot Gris', 'white'], ['Pinot Blanc', 'white'],
-  ['Gewürztraminer', 'white', ['gewurztraminer']], ['Chenin Blanc', 'white'], ['Viognier', 'white'], ['Albariño', 'white'],
-  ['Scheurebe', 'white'], ['Kerner', 'white'], ['Gutedel', 'white'], ['Sémillon', 'white'], ['Vermentino', 'white'],
-  ['Spätburgunder', 'red', ['spatburgunder']], ['Pinot Noir', 'red'], ['Cabernet Sauvignon', 'red'], ['Cabernet Franc', 'red'],
-  ['Merlot', 'red'], ['Syrah', 'red'], ['Shiraz', 'red'], ['Grenache', 'red'], ['Garnacha', 'red'], ['Tempranillo', 'red'],
-  ['Sangiovese', 'red'], ['Nebbiolo', 'red'], ['Barbera', 'red'], ['Primitivo', 'red'], ['Zinfandel', 'red'],
-  ['Malbec', 'red'], ['Gamay', 'red'], ['Lemberger', 'red'], ['Blaufränkisch', 'red'], ['Zweigelt', 'red'],
-  ['Dornfelder', 'red'], ['Trollinger', 'red'], ['Montepulciano', 'red'], ['Touriga Nacional', 'red'], ['Carménère', 'red'],
-  ['Pinotage', 'red'], ['Mourvèdre', 'red'], ['Corvina', 'red'], ['Nero d’Avola', 'red', ['nero d avola']],
-];
-
 const TYPE_WORDS = [
   ['sparkling', /\b(?:champagne|cremant|sekt|cava|prosecco|spumante|franciacorta|schaumwein|mousseux|brut|blanc de blancs|blanc de noirs)\b/],
   ['rose', /\b(?:rose|rosato|rosado|weissherbst|rosewein)\b/],
@@ -77,16 +35,6 @@ const PRODUCER_PREFIX = /^(?:weingut|weinhaus|winzerhof|schloss|domaine|chateau|
 const PRODUCER_SUFFIX = /\b(?:winery|wines|estate|vineyards|weingut)$/;
 const BOTTLER = /(?:erzeugerabfullung|gutsabfullung|abgefullt (?:von|durch)|elabore par|mis en bouteille par|imbottigliato da|embotellado por|produced and bottled by|produced by|bottled by|vinified by)\s*:?\s*(.+)$/;
 const BOILERPLATE = /\b(?:grand vin|appellation|controlee|protegee|mis en bouteille|product of|produce of|produit de|enthalt sulfite|contains sulfites|qualitatswein|pradikatswein|indicazione|denominazione|docg?|igt|aoc|aop|dop|trocken|halbtrocken|feinherb|lieblich|brut|ml|cl|vol|premier cru|grand cru|cru classe|grosses gewachs|erste lage|seit|since|depuis|gegrundet|founded|reserve|riserva)\b/;
-
-export function normalize(value) {
-  return String(value ?? '')
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/ß/g, 'ss')
-    .replace(/[^\p{L}\p{N}%.,]+/gu, ' ')
-    .trim();
-}
 
 const wordRegex = (phrase) => new RegExp(`(?:^|[^\\p{L}])${normalize(phrase).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:$|[^\\p{L}])`, 'u');
 
